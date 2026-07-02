@@ -32,6 +32,7 @@ from web.db import (
     upsert_client, delete_client, delete_clients_by_owner,
     create_report, update_report, get_report, list_reports, delete_report,
     enqueue_report, claim_next_report, requeue_stuck, report_status_counts,
+    set_key_status, last_report_dates,
 )
 from collectors.naver_searchad import is_connected, MOCK_MODE
 
@@ -156,6 +157,17 @@ async def index(request: Request):
 
 
 # ── 광고주 등록·검색·삭제 ─────────────────────────────────
+async def _bg_validate_keys(items: list):
+    """업로드된 키들을 순차 검증(조회 전용 1회)해 key_status 갱신."""
+    from collectors.naver_searchad import validate_account
+    for (cid_db, cid, key, secret) in items:
+        try:
+            ok = await asyncio.to_thread(validate_account, cid, key, secret)
+            set_key_status(cid_db, "ok" if ok else "invalid")
+        except Exception:
+            pass
+
+
 def _mask(secret) -> str:
     s = str(secret or "")
     if not s:
@@ -169,6 +181,7 @@ async def clients_page(request: Request):
     if not sess:
         return RedirectResponse("/login", status_code=302)
     clients = get_all_clients() if _is_admin(sess) else get_clients_by_owner(sess["user_id"])
+    last_dates = last_report_dates(_reports_scope(sess))
     rows = []
     for c in clients:
         rows.append({
@@ -178,6 +191,8 @@ async def clients_page(request: Request):
             "manager_name": c.get("manager_name") or "",
             "has_key": bool(c.get("api_key") and c.get("api_secret")),
             "key_masked": _mask(c.get("api_key")),
+            "key_status": c.get("key_status") or "",
+            "last_report": last_dates.get(c["id"], ""),
         })
     return render(request, "clients.html", active_page="clients",
                   client_rows=rows,
@@ -200,13 +215,19 @@ async def clients_add(
     sess = get_session(request)
     if not sess:
         return RedirectResponse("/login", status_code=302)
-    upsert_client(
+    cid_db, _ = upsert_client(
         naver_customer_id=naver_customer_id.strip(), name=name.strip(),
         owner_id=sess["user_id"],
         api_key=api_key.strip(), api_secret=api_secret.strip(),
         media=media.strip(), manager_name=manager_name.strip(),
         manager_email=manager_email.strip(),
     )
+    # 키 유효성 검증(조회 전용 1회) → 대시보드 '정보 없음' 표기용
+    if api_key.strip() and api_secret.strip():
+        from collectors.naver_searchad import validate_account
+        ok = await asyncio.to_thread(validate_account, naver_customer_id.strip(),
+                                     api_key.strip(), api_secret.strip())
+        set_key_status(cid_db, "ok" if ok else "invalid")
     return RedirectResponse(f"/clients?added={name.strip()}", status_code=302)
 
 
@@ -262,12 +283,14 @@ async def clients_upload(request: Request, file: UploadFile = File(...),
     deleted = delete_clients_by_owner(sess["user_id"]) if mode == "replace" else 0
 
     new_cnt, upd_cnt, skipped = 0, 0, len(records) - len(valid)
+    to_validate = []
     for r in valid:
         cid = r["customer_id"].strip()
+        k, s = r.get("api_key", "").strip(), r.get("api_secret", "").strip()
         _id, created = upsert_client(
             naver_customer_id=cid, name=r.get("name") or f"광고주 {cid}",
             owner_id=sess["user_id"],
-            api_key=r.get("api_key", ""), api_secret=r.get("api_secret", ""),
+            api_key=k, api_secret=s,
             media=r.get("media", ""), manager_name=r.get("marketer", ""),
             manager_email=r.get("email", ""),
         )
@@ -275,6 +298,12 @@ async def clients_upload(request: Request, file: UploadFile = File(...),
             new_cnt += 1
         else:
             upd_cnt += 1
+        if k and s:
+            to_validate.append((_id, cid, k, s))
+
+    # 업로드된 키는 백그라운드로 검증(응답 지연 방지) → 대시보드에 '정보 없음' 반영
+    if to_validate:
+        asyncio.create_task(_bg_validate_keys(to_validate))
 
     if mode == "replace":
         msg = f"기존 {deleted}건 삭제 · {new_cnt}건 추가"

@@ -93,6 +93,22 @@ def register_account(customer_id, api_key, api_secret,
     return acct
 
 
+def validate_account(customer_id, api_key, api_secret) -> bool:
+    """키 유효성 확인: 조회 전용 GET 1회(/ncc/campaigns). 성공=True, 인증실패=False.
+    MOCK 모드면 실제 검증이 불가하므로 True(통과 간주)."""
+    if MOCK_MODE:
+        return True
+    cid = str(customer_id or "").strip()
+    if not (cid and str(api_key or "").strip() and str(api_secret or "").strip()):
+        return False
+    register_account(cid, api_key, api_secret)
+    try:
+        _get("/ncc/campaigns", customer_id=cid)
+        return True
+    except Exception:
+        return False
+
+
 def _build_groups() -> dict:
     """group 이름 → 소속 계정 목록 (입력 순서 유지)"""
     groups: dict[str, list] = {}

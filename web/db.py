@@ -21,6 +21,7 @@ CLIENTS_SQL = """CREATE TABLE IF NOT EXISTS clients (
     media           TEXT DEFAULT '',
     api_key         TEXT DEFAULT '',
     api_secret      TEXT DEFAULT '',
+    key_status      TEXT DEFAULT '',
     active          INTEGER DEFAULT 1,
     synced_at       TEXT,
     created_at      TEXT DEFAULT (datetime('now','localtime'))
@@ -61,7 +62,7 @@ def init_db():
         with get_conn() as conn:
             conn.execute("DROP TABLE IF EXISTS _clients_old")   # 이전 실패 잔재 정리
             cols = {r[1] for r in conn.execute("PRAGMA table_info(clients)")}
-            for col in ("api_key", "api_secret", "media"):
+            for col in ("api_key", "api_secret", "media", "key_status"):
                 if col not in cols:
                     conn.execute(f"ALTER TABLE clients ADD COLUMN {col} TEXT DEFAULT ''")
             if "owner_id" not in cols:
@@ -186,6 +187,24 @@ def get_clients_by_owner(owner_id: int) -> list[dict]:
             (owner_id,)
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def set_key_status(client_id: int, status: str):
+    """API 키 검증 결과 저장: '' 미검증 / 'ok' 정상 / 'invalid' 정보없음."""
+    with get_conn() as conn:
+        conn.execute("UPDATE clients SET key_status=? WHERE id=?", (status, client_id))
+
+
+def last_report_dates(owner_id: int | None = None) -> dict:
+    """광고주별 최근 '완료' 보고서 생성일(YYYY-MM-DD). {client_id: date}."""
+    with get_conn() as conn:
+        q = ("SELECT r.client_id AS cid, MAX(r.created_at) AS d "
+             "FROM reports r JOIN clients c ON c.id=r.client_id WHERE r.status='done'")
+        if owner_id is not None:
+            rows = conn.execute(q + " AND c.owner_id=? GROUP BY r.client_id", (owner_id,)).fetchall()
+        else:
+            rows = conn.execute(q + " GROUP BY r.client_id").fetchall()
+    return {r["cid"]: (r["d"] or "")[:10] for r in rows}
 
 
 def get_client(client_id: int) -> dict | None:
