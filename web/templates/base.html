@@ -70,6 +70,11 @@
         팀원 관리
       </a>
       {% endif %}
+      <a href="/manual" class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors
+         {{ 'bg-brand-50 text-brand-700' if nav=='manual' else 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+        <svg class="w-[18px] h-[18px] {{ 'text-brand-600' if nav=='manual' else 'text-slate-400 group-hover:text-slate-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.5V20M12 6.5a4 4 0 00-4-4H3v13.5h5a4 4 0 014 4m0-13.5a4 4 0 014-4h5V16.5h-5a4 4 0 00-4 4"/></svg>
+        사용 매뉴얼
+      </a>
     </nav>
 
     <div class="flex-1"></div>

@@ -456,6 +456,14 @@ async def download(filename: str, request: Request):
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
+# ── 사용 매뉴얼 ───────────────────────────────────────────
+@app.get("/manual", response_class=HTMLResponse)
+async def manual_page(request: Request):
+    if not get_session(request):
+        return RedirectResponse("/login", status_code=302)
+    return render(request, "manual.html", active_page="manual")
+
+
 # ── 팀원(로그인 계정) 관리 ────────────────────────────────
 @app.get("/admin/users", response_class=HTMLResponse)
 async def admin_users(request: Request):
