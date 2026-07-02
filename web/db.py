@@ -271,6 +271,20 @@ def get_members_of(manager_id: int) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def clear_user_refs(user_id: int):
+    """사용자 삭제 시 유령 참조 정리: 소속 팀원의 parent_id·다른 보고서의 할당·본인 알림."""
+    with get_conn() as conn:
+        conn.execute("UPDATE users SET parent_id=NULL WHERE parent_id=?", (user_id,))
+        conn.execute("UPDATE reports SET assigned_to=NULL WHERE assigned_to=?", (user_id,))
+        conn.execute("DELETE FROM notifications WHERE user_id=?", (user_id,))
+
+
+def is_manager(user_id: int) -> bool:
+    with get_conn() as conn:
+        r = conn.execute("SELECT role FROM users WHERE id=?", (user_id,)).fetchone()
+    return bool(r and r["role"] == "manager")
+
+
 def get_users_by_role(role: str) -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(

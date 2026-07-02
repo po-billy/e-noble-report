@@ -4,165 +4,162 @@
 {% block content %}
 <div class="mb-6">
   <h1 class="text-[26px] font-bold text-slate-900 tracking-tight">사용 매뉴얼</h1>
-  <p class="text-slate-500 mt-1 text-sm">로그인 → 광고주 등록 → 보고서 생성 · 다운로드. 처음이면 이 순서대로 따라오세요.</p>
+  <p class="text-slate-500 mt-1 text-sm">처음이신가요? 이 도구는 <b class="text-slate-700">네이버 파워링크 광고 보고서를 자동으로 만들어 주는</b> 사내 시스템입니다. 아래 순서대로 따라오시면 됩니다.</p>
 </div>
 
-<!-- 테스트 서버 경고 -->
-<div class="mb-7 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+<!-- 테스트 서버 안내 -->
+<div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
   <div class="flex items-start gap-3">
     <span class="w-7 h-7 rounded-lg bg-amber-400 text-white flex items-center justify-center shrink-0 font-bold">!</span>
     <div>
       <h2 class="font-bold text-amber-900">지금은 “테스트 서버”입니다</h2>
-      <p class="text-sm text-amber-800 mt-1 leading-relaxed">기능을 확인해보는 임시 환경이라 <b>실제 운영(라이브) 서버와 몇 가지 차이</b>가 있습니다(속도·데이터 보관 등).
-        아래 <a href="#diff" class="underline font-semibold">테스트 vs 라이브 비교표</a>를 확인하세요. 생성은 <b>요청만 하면 서버가 알아서 처리</b>하니 페이지를 나가셔도 됩니다.</p>
+      <p class="text-sm text-amber-800 mt-1 leading-relaxed">실제 운영 전 미리 써보는 환경입니다. 기능은 동일하고, 속도·데이터 보관에서 약간의 차이만 있습니다(<a href="#diff" class="underline font-semibold">아래 비교표</a>). 생성은 <b>요청만 하면 서버가 알아서</b> 처리하니 자유롭게 쓰세요.</p>
     </div>
   </div>
 </div>
 
-<!-- STEP 1 -->
-<div class="bg-white border border-slate-200 rounded-2xl shadow-card p-6 mb-4">
-  <div class="flex items-center gap-2.5 mb-3">
-    <span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-sm font-bold flex items-center justify-center">1</span>
-    <h2 class="font-bold text-slate-900 text-lg">로그인</h2>
+<!-- 역할 이해 -->
+<div class="bg-white border border-slate-200 rounded-2xl shadow-card p-6 mb-6">
+  <h2 class="font-bold text-slate-900 text-lg mb-3">먼저, 내 역할이 뭔가요?</h2>
+  <div class="grid md:grid-cols-3 gap-3 text-sm">
+    <div class="rounded-xl border border-slate-200 p-4">
+      <p class="font-semibold text-red-600 mb-1">관리자</p>
+      <p class="text-slate-600 text-[13px]">전체 팀·광고주·보고서를 봄. 계정 생성·소속 지정·비번 재설정.</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 p-4">
+      <p class="font-semibold text-blue-600 mb-1">팀장</p>
+      <p class="text-slate-600 text-[13px]"><b>우리 팀(나 + 소속 팀원)</b>의 광고주·보고서를 봄. 광고주 등록·생성, 팀원에게 보고서 할당.</p>
+    </div>
+    <div class="rounded-xl border border-slate-200 p-4">
+      <p class="font-semibold text-slate-700 mb-1">팀원</p>
+      <p class="text-slate-600 text-[13px]"><b>내 광고주 + 팀장이 할당해 준 보고서</b>를 봄. 등록·생성도 가능.</p>
+    </div>
   </div>
+  <p class="text-xs text-slate-400 mt-3">계정·역할은 관리자가 만들어 줍니다. 로그인 정보는 관리자에게 받으세요.</p>
+</div>
+
+<!-- STEP 1 로그인 -->
+<div class="bg-white border border-slate-200 rounded-2xl shadow-card p-6 mb-4">
+  <div class="flex items-center gap-2.5 mb-3"><span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-sm font-bold flex items-center justify-center">1</span><h2 class="font-bold text-slate-900 text-lg">로그인</h2></div>
   <ul class="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
-    <li>관리자가 만들어 준 <b>이메일 · 비밀번호</b>로 로그인합니다.</li>
-    <li>로그인하면 <b>[광고주 · 생성]</b> 화면으로 이동합니다.</li>
+    <li>관리자가 준 <b>이메일·비밀번호</b>로 로그인합니다.</li>
+    <li>비밀번호를 잊었다면 관리자가 <b>재설정</b>해 줄 수 있습니다.</li>
   </ul>
 </div>
 
-<!-- STEP 2 -->
+<!-- STEP 2 광고주 등록 -->
 <div class="bg-white border border-slate-200 rounded-2xl shadow-card p-6 mb-4">
-  <div class="flex items-center gap-2.5 mb-3">
-    <span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-sm font-bold flex items-center justify-center">2</span>
-    <h2 class="font-bold text-slate-900 text-lg">광고주 등록</h2>
-  </div>
-  <p class="text-sm text-slate-500 mb-3">보고서를 뽑을 광고주를 먼저 등록합니다. 두 가지 방법이 있어요.</p>
-
+  <div class="flex items-center gap-2.5 mb-3"><span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-sm font-bold flex items-center justify-center">2</span><h2 class="font-bold text-slate-900 text-lg">광고주 등록</h2></div>
+  <p class="text-sm text-slate-500 mb-3">보고서를 뽑을 광고주를 먼저 등록합니다. 방법은 두 가지.</p>
   <div class="grid md:grid-cols-2 gap-3 mb-4">
     <div class="rounded-xl border border-slate-200 p-4">
-      <p class="font-semibold text-slate-800 text-sm mb-1.5">방법 A · 시트로 한 번에 (추천)</p>
+      <p class="font-semibold text-slate-800 text-sm mb-1.5">A · 시트로 한 번에 (추천)</p>
       <ol class="text-[13px] text-slate-600 space-y-1 list-decimal pl-4">
-        <li><b>[템플릿 받기]</b> 눌러 엑셀 양식 다운로드</li>
-        <li>양식에 광고주별로 한 줄씩 입력 (아래 열 설명 참고)</li>
+        <li><b>[템플릿 받기]</b> → 엑셀 양식 다운로드</li>
+        <li>광고주별로 한 줄씩 입력</li>
         <li>파일 선택 → <b>[업로드]</b></li>
       </ol>
-      <p class="text-[12px] text-slate-400 mt-2"><b>추가</b>: 기존 유지+신규만 / <b>전체 교체</b>: 내 광고주 전부 지우고 새로 채움</p>
+      <p class="text-[12px] text-slate-400 mt-2"><b>추가</b>=기존 유지+신규만 / <b class="text-red-500">전체 교체</b>=내 광고주 전부 지우고 새로 채움</p>
     </div>
     <div class="rounded-xl border border-slate-200 p-4">
-      <p class="font-semibold text-slate-800 text-sm mb-1.5">방법 B · 하나씩 직접 입력</p>
-      <p class="text-[13px] text-slate-600"><b>[＋ 광고주 하나씩 추가]</b>를 펼쳐서 이름·customer_id·키를 입력하고 저장합니다.</p>
+      <p class="font-semibold text-slate-800 text-sm mb-1.5">B · 하나씩 직접 입력</p>
+      <p class="text-[13px] text-slate-600"><b>[＋ 광고주 하나씩 추가]</b>를 펼쳐 입력·저장.</p>
+      <p class="text-[12px] text-slate-400 mt-2">등록 후 목록에서 <b>연필(수정)</b>로 언제든 고칠 수 있습니다(키 교체·오타).</p>
     </div>
   </div>
-
-  <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
+  <div class="rounded-xl bg-slate-50 border border-slate-100 p-4 mb-3">
     <p class="font-semibold text-slate-700 text-sm mb-2">입력 항목 (네이버 검색광고에서 발급)</p>
     <ul class="text-[13px] text-slate-600 space-y-1">
       <li><b>customer_id</b> — 광고 계정 번호 (예: 4273)</li>
       <li><b>api_key</b> — 액세스 라이선스 (0100…으로 시작)</li>
       <li><b>api_secret</b> — 비밀키 (AQ…로 시작)</li>
     </ul>
-    <p class="text-[12px] text-slate-400 mt-2">발급 위치: <b>tool.searchad.naver.com → 도구 → API 사용 관리</b>. 키가 없으면 목록에 “키 없음”으로 표시되고 생성이 안 됩니다.</p>
+    <p class="text-[12px] text-slate-400 mt-2">발급: <b>tool.searchad.naver.com → 도구 → API 사용 관리</b></p>
   </div>
-
-  <p class="text-[13px] text-slate-500 mt-3">· 목록 우측 <b>검색창</b>으로 광고주를 찾고, 행에 마우스를 올리면 나오는 <b>🗑</b>로 삭제할 수 있습니다.</p>
+  <div class="grid md:grid-cols-2 gap-3 text-[13px]">
+    <div class="rounded-lg bg-emerald-50 border border-emerald-100 p-3"><b class="text-emerald-700">✓ 키 검증 자동</b><p class="text-slate-600 mt-0.5">등록하면 키가 맞는지 1회 확인합니다. 틀리면 목록에 <b class="text-red-600">‘정보 없음’</b>으로 표시 → 연필로 고치세요.</p></div>
+    <div class="rounded-lg bg-slate-50 border border-slate-100 p-3"><b class="text-slate-700">🔎 찾기 편하게</b><p class="text-slate-600 mt-0.5">검색창, <b>키 상태·담당 팀장 필터</b>, 열 제목 클릭 <b>정렬</b>, KPI 카드 클릭 필터를 쓰세요.</p></div>
+  </div>
+  <div class="mt-3 rounded-xl bg-red-50 border border-red-100 p-3.5">
+    <p class="text-sm text-red-700"><b>⚠️ 삭제 주의:</b> 광고주를 삭제하면 <b>그 광고주의 보고서도 함께 삭제</b>됩니다. 팀원에게 할당했던 보고서면 해당 팀원에게 삭제 알림이 갑니다. 삭제 전 확인창의 안내를 꼭 읽어보세요.</p>
+  </div>
 </div>
 
-<!-- STEP 3 -->
+<!-- STEP 3 생성 -->
 <div class="bg-white border border-slate-200 rounded-2xl shadow-card p-6 mb-4">
-  <div class="flex items-center gap-2.5 mb-3">
-    <span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-sm font-bold flex items-center justify-center">3</span>
-    <h2 class="font-bold text-slate-900 text-lg">보고서 생성</h2>
-  </div>
+  <div class="flex items-center gap-2.5 mb-3"><span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-sm font-bold flex items-center justify-center">3</span><h2 class="font-bold text-slate-900 text-lg">보고서 생성</h2></div>
   <ul class="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
-    <li>상단에서 <b>연도·월</b>을 고릅니다 (기본은 지난달).</li>
-    <li>광고주 한 곳만 만들려면 그 행의 <b>[생성]</b> 버튼.</li>
-    <li>키가 등록된 광고주 전부를 만들려면 상단 <b>[전체 생성]</b> 버튼 → 한 번에 예약됩니다.</li>
-    <li>진행 상황은 <b>[생성된 보고서]</b>에서 <span class="text-brand-600 font-medium">예약 → 생성 중</span> → <span class="text-emerald-600 font-medium">✓ 완료</span>로 실시간 표시되고, 완료되면 <b>다운로드</b>가 나옵니다.</li>
+    <li>상단에서 <b>연도·월</b>을 고릅니다(기본 지난달).</li>
+    <li>한 곳만: 그 행의 <b>[생성]</b> · 전부: 상단 <b>[전체 생성]</b>(키 있는 광고주 한 번에 예약).</li>
+    <li>같은 광고주·같은 달을 다시 만들면 <b>새로 쌓이지 않고 최신본으로 덮어씁니다</b>.</li>
   </ul>
   <div class="mt-3 rounded-xl bg-emerald-50 border border-emerald-100 p-3.5">
-    <p class="text-sm text-emerald-800"><b>요청하고 나가도 됩니다 👍</b> 생성은 <b>서버가 백그라운드로 처리</b>하므로, 페이지를 벗어나거나 로그아웃해도 <b>[생성된 보고서]</b>에 되는 대로 하나씩 나타납니다. 실패한 건 그 화면에서 <b>[다시 생성]</b>으로 재시도할 수 있습니다.</p>
+    <p class="text-sm text-emerald-800"><b>요청하고 나가도 됩니다 👍</b> 서버가 백그라운드로 처리하므로 창을 닫거나 로그아웃해도 <b>[생성된 보고서]</b>에 <span class="font-medium">예약 → 생성 중 → 완료</span>로 하나씩 나타납니다(자동 새로고침).</p>
   </div>
 </div>
 
-<!-- STEP 4 -->
+<!-- STEP 4 보고서 & 할당 -->
 <div class="bg-white border border-slate-200 rounded-2xl shadow-card p-6 mb-4">
-  <div class="flex items-center gap-2.5 mb-3">
-    <span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-sm font-bold flex items-center justify-center">4</span>
-    <h2 class="font-bold text-slate-900 text-lg">생성된 보고서 · 다운로드</h2>
-  </div>
+  <div class="flex items-center gap-2.5 mb-3"><span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-sm font-bold flex items-center justify-center">4</span><h2 class="font-bold text-slate-900 text-lg">생성된 보고서 · 다운로드 · 할당</h2></div>
   <ul class="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
-    <li>왼쪽 <b>[생성된 보고서]</b>에서 만든 보고서를 확인합니다.</li>
-    <li><b>전체 / 완료 / 실패</b> 탭과 <b>생성일 · 보고월 · 광고주명</b> 필터로 찾을 수 있습니다.</li>
-    <li>개별 <b>다운로드</b>, 또는 체크 후 <b>선택 다운로드</b>/<b>전체 다운로드(zip)</b>로 한 번에 받습니다.</li>
-    <li>필요 없는 보고서는 <b>선택 삭제</b> 또는 행의 🗑로 지웁니다.</li>
+    <li><b>[생성된 보고서]</b>에서 <b>전체/진행 중/완료/실패</b> 탭 + 생성일·보고월·담당 팀원 필터로 찾기.</li>
+    <li>개별 <b>다운로드</b>, 체크 후 <b>선택/전체 다운로드(zip)</b>로 한 번에.</li>
+    <li>실패한 건 <b>[다시 생성]</b>(개별·실패 전체)으로 재시도. 키 오류면 <b>[키 고치기]</b>로 이동.</li>
+    <li><b class="text-brand-700">팀원에게 할당</b>(팀장): 완료 보고서 체크 → <b>[팀원에게 할당]</b> → 팀원 선택. 취소는 ‘→OOO 할당’ 옆 <b>✕</b>.</li>
   </ul>
 </div>
 
-<!-- STEP 5 (admin) -->
-<div class="bg-white border border-slate-200 rounded-2xl shadow-card p-6 mb-7">
-  <div class="flex items-center gap-2.5 mb-3">
-    <span class="w-7 h-7 rounded-lg bg-slate-700 text-white text-sm font-bold flex items-center justify-center">★</span>
-    <h2 class="font-bold text-slate-900 text-lg">팀원 관리 <span class="text-sm font-normal text-slate-400">(관리자만)</span></h2>
-  </div>
+<!-- STEP 5 알림/팀원 -->
+<div class="bg-white border border-slate-200 rounded-2xl shadow-card p-6 mb-4">
+  <div class="flex items-center gap-2.5 mb-3"><span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-sm font-bold flex items-center justify-center">5</span><h2 class="font-bold text-slate-900 text-lg">팀원이 받기 · 알림 🔔</h2></div>
   <ul class="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
-    <li><b>[팀원 관리]</b>에서 팀장·팀원 계정을 만들어 줍니다.</li>
-    <li><b>격리 원칙:</b> 팀장/팀원은 <b>자기가 등록한 광고주·보고서만</b> 봅니다. 서로 안 보입니다.</li>
-    <li>관리자는 <b>전체</b>를 볼 수 있습니다.</li>
+    <li>팀원은 로그인하면 <b>할당받은 보고서</b>가 [생성된 보고서]에 보입니다(본인 것 + 할당분).</li>
+    <li>왼쪽 아래 <b>🔔 종 아이콘</b>에 새 알림이 뜹니다: <b>할당됨 / 업데이트됨(재생성) / 삭제됨</b>.</li>
   </ul>
+</div>
+
+<!-- STEP 6 관리자 -->
+<div class="bg-white border border-slate-200 rounded-2xl shadow-card p-6 mb-6">
+  <div class="flex items-center gap-2.5 mb-3"><span class="w-7 h-7 rounded-lg bg-slate-700 text-white text-sm font-bold flex items-center justify-center">★</span><h2 class="font-bold text-slate-900 text-lg">관리자 — 팀원 관리</h2></div>
+  <ul class="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
+    <li><b>[팀원 관리]</b>에서 계정 생성(역할: 팀장/팀원), <b>소속 팀장</b> 드롭다운 지정.</li>
+    <li>비밀번호 <b>재설정</b>, 계정 <b>삭제</b> 가능.</li>
+  </ul>
+  <div class="mt-3 rounded-xl bg-red-50 border border-red-100 p-3.5">
+    <p class="text-sm text-red-700"><b>⚠️ 계정 삭제 주의:</b> <b>팀장 계정을 삭제하면 그 팀장이 등록한 광고주와 보고서가 모두 함께 삭제</b>됩니다(되돌릴 수 없음). 소속 팀원 계정은 남지만 ‘소속’이 해제됩니다. 할당됐던 보고서는 해당 팀원에게 삭제 알림이 갑니다.</p>
+  </div>
+</div>
+
+<!-- 자주 막히는 것 -->
+<div class="bg-white border border-slate-200 rounded-2xl shadow-card overflow-hidden mb-4">
+  <div class="px-6 py-4 border-b border-slate-100"><h2 class="font-bold text-slate-900 text-lg">❓ 자주 막히는 것</h2></div>
+  <table class="w-full text-sm">
+    <tbody class="divide-y divide-slate-100 text-slate-600">
+      <tr><td class="px-6 py-3 font-semibold text-slate-800 w-40">‘키 없음’</td><td class="px-6 py-3">아직 API 키를 안 넣음 → 연필(수정)로 키 입력 후 생성.</td></tr>
+      <tr><td class="px-6 py-3 font-semibold text-slate-800">‘정보 없음’</td><td class="px-6 py-3">키가 틀렸거나 만료 → 연필로 올바른 키로 교체(자동 재검증).</td></tr>
+      <tr><td class="px-6 py-3 font-semibold text-slate-800">생성 ‘실패’</td><td class="px-6 py-3">사유가 한국어로 표시됨. 키 오류면 [키 고치기], 지연이면 [다시 생성].</td></tr>
+      <tr><td class="px-6 py-3 font-semibold text-slate-800">업로드 일부 누락</td><td class="px-6 py-3">업로드 후 ‘결과 패널’에서 건너뛴 행·사유 확인(주로 customer_id 빈칸).</td></tr>
+    </tbody>
+  </table>
 </div>
 
 <!-- 테스트 vs 라이브 -->
 <div id="diff" class="bg-white border border-slate-200 rounded-2xl shadow-card overflow-hidden mb-4">
-  <div class="px-6 py-4 border-b border-slate-100">
-    <h2 class="font-bold text-slate-900 text-lg">⚖️ 지금(테스트 서버) vs 앞으로(라이브 서버)</h2>
-    <p class="text-sm text-slate-500 mt-0.5">기능은 같지만 안정성·속도·데이터 보관에서 차이가 있습니다.</p>
-  </div>
+  <div class="px-6 py-4 border-b border-slate-100"><h2 class="font-bold text-slate-900 text-lg">⚖️ 지금(테스트) vs 앞으로(라이브)</h2></div>
   <table class="w-full text-sm">
-    <thead>
-      <tr class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/50">
-        <th class="px-6 py-3 text-left font-semibold">항목</th>
-        <th class="px-6 py-3 text-left font-semibold">지금 · 테스트 서버</th>
-        <th class="px-6 py-3 text-left font-semibold">앞으로 · 라이브 서버</th>
-      </tr>
-    </thead>
+    <thead><tr class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/50"><th class="px-6 py-3 text-left font-semibold">항목</th><th class="px-6 py-3 text-left font-semibold">테스트 서버</th><th class="px-6 py-3 text-left font-semibold">라이브 서버</th></tr></thead>
     <tbody class="divide-y divide-slate-100 text-slate-600">
-      <tr>
-        <td class="px-6 py-3 font-semibold text-slate-800">생성 중 페이지 이탈</td>
-        <td class="px-6 py-3 text-emerald-600">나가도 됨 (서버 큐가 처리)</td>
-        <td class="px-6 py-3 text-emerald-600">나가도 됨</td>
-      </tr>
-      <tr>
-        <td class="px-6 py-3 font-semibold text-slate-800">첫 접속 속도</td>
-        <td class="px-6 py-3">잠깐 느릴 수 있음(대기 후 깨어남)</td>
-        <td class="px-6 py-3 text-emerald-600">항상 즉시</td>
-      </tr>
-      <tr>
-        <td class="px-6 py-3 font-semibold text-slate-800">응답 속도(위치)</td>
-        <td class="px-6 py-3">도쿄 서버 — 약간의 지연</td>
-        <td class="px-6 py-3 text-emerald-600">서울 서버 — 더 빠름</td>
-      </tr>
-      <tr>
-        <td class="px-6 py-3 font-semibold text-slate-800">데이터 보관</td>
-        <td class="px-6 py-3 text-amber-600">테스트용이라 초기화될 수 있음</td>
-        <td class="px-6 py-3 text-emerald-600">안정적으로 보관·백업</td>
-      </tr>
-      <tr>
-        <td class="px-6 py-3 font-semibold text-slate-800">동시 대량 생성</td>
-        <td class="px-6 py-3">소량 확인용(한두 건씩 권장)</td>
-        <td class="px-6 py-3 text-emerald-600">대량·야간 배치 대응</td>
-      </tr>
-      <tr>
-        <td class="px-6 py-3 font-semibold text-slate-800">이메일 자동발송·스케줄</td>
-        <td class="px-6 py-3 text-slate-400">미제공(추후)</td>
-        <td class="px-6 py-3">도입 예정</td>
-      </tr>
+      <tr><td class="px-6 py-3 font-semibold text-slate-800">생성 중 이탈</td><td class="px-6 py-3 text-emerald-600">나가도 됨</td><td class="px-6 py-3 text-emerald-600">나가도 됨</td></tr>
+      <tr><td class="px-6 py-3 font-semibold text-slate-800">첫 접속 속도</td><td class="px-6 py-3">잠깐 느릴 수 있음</td><td class="px-6 py-3 text-emerald-600">항상 즉시</td></tr>
+      <tr><td class="px-6 py-3 font-semibold text-slate-800">응답 속도</td><td class="px-6 py-3">도쿄 서버</td><td class="px-6 py-3 text-emerald-600">서울 서버(더 빠름)</td></tr>
+      <tr><td class="px-6 py-3 font-semibold text-slate-800">데이터 보관</td><td class="px-6 py-3 text-amber-600">초기화될 수 있음</td><td class="px-6 py-3 text-emerald-600">안정적 보관·백업</td></tr>
+      <tr><td class="px-6 py-3 font-semibold text-slate-800">이메일 자동발송</td><td class="px-6 py-3 text-slate-400">미제공(추후)</td><td class="px-6 py-3">도입 예정</td></tr>
     </tbody>
   </table>
 </div>
 
 <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
   <p class="font-semibold text-slate-800 mb-1">막히면?</p>
-  <p>계정 발급·API 키·오류 등 문제가 생기면 관리자에게 문의하세요. 이 화면은 언제든 왼쪽 <b>[사용 매뉴얼]</b>에서 다시 볼 수 있습니다.</p>
+  <p>계정·API 키·오류 등 문제가 생기면 관리자에게 문의하세요. 이 화면은 언제든 왼쪽 <b>[사용 매뉴얼]</b>에서 다시 볼 수 있습니다.</p>
 </div>
 {% endblock %}

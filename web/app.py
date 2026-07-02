@@ -37,7 +37,7 @@ from web.db import (
     get_team_ids, get_members_of, get_users_by_role, get_clients_scoped,
     set_parent, assign_report,
     add_notification, unseen_notif_count, list_notifications,
-    mark_notifications_seen, client_report_counts,
+    mark_notifications_seen, client_report_counts, clear_user_refs, is_manager,
 )
 from collectors.naver_searchad import is_connected, MOCK_MODE
 
@@ -796,11 +796,27 @@ async def create_user(
 
 @app.post("/admin/users/{user_id}/delete")
 async def delete_user(user_id: int, request: Request):
+    """계정 삭제(캐스케이드): 그 사용자의 광고주·보고서·파일·알림 삭제 + 유령참조 정리.
+    할당받은 팀원에게는 삭제 알림."""
     sess = get_session(request)
     if not sess or sess["role"] != "admin":
         return JSONResponse({"error": "권한 없음"}, status_code=403)
     if user_id == sess["user_id"]:
         return JSONResponse({"error": "본인 계정은 삭제 불가"}, status_code=400)
+    # 1) 이 사용자가 등록한 광고주 + 보고서 삭제(파일·알림 정리 + 할당자 통지)
+    for c in get_clients_by_owner(user_id):
+        for rep in delete_client(c["id"]):
+            if rep.get("filename"):
+                try:
+                    (OUTPUT_DIR / rep["filename"]).unlink(missing_ok=True)
+                except OSError:
+                    pass
+            if rep.get("assigned_to") and rep["assigned_to"] != user_id:
+                add_notification(rep["assigned_to"], None, "removed",
+                                 f"'{c['name']}' {rep['year']}년 {rep['month']}월 보고서가 삭제되었습니다.")
+    # 2) 유령 참조 정리: 소속 팀원 parent 해제, 다른 보고서의 이 사람 할당 해제, 본인 알림 삭제
+    clear_user_refs(user_id)
+    # 3) 계정 삭제
     from web.db import get_conn
     with get_conn() as conn:
         conn.execute("DELETE FROM users WHERE id=?", (user_id,))
@@ -829,6 +845,11 @@ async def set_user_parent(user_id: int, request: Request, parent_id: str = Form(
     if not sess or sess["role"] != "admin":
         return JSONResponse({"error": "권한 없음"}, status_code=403)
     pid = int(parent_id) if parent_id.strip().isdigit() else None
+    if pid is not None:
+        if pid == user_id:
+            return JSONResponse({"error": "자기 자신을 소속 팀장으로 지정할 수 없습니다."}, status_code=400)
+        if not is_manager(pid):
+            return JSONResponse({"error": "팀장 계정만 소속 팀장으로 지정할 수 있습니다."}, status_code=400)
     set_parent(user_id, pid)
     return JSONResponse({"ok": True})
 
