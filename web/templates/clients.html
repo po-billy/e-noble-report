@@ -155,7 +155,8 @@
       <tr class="group hover:bg-slate-50/70 transition-colors" data-cid="{{ c.id }}" data-haskey="{{ 1 if c.has_key else 0 }}"
           data-search="{{ (c.name ~ ' ' ~ c.naver_customer_id)|lower }}"
           data-name="{{ c.name|lower }}" data-custid="{{ c.naver_customer_id }}" data-media="{{ c.media }}"
-          data-last="{{ c.last_report }}" data-owner="{{ (c.owner_name or '')|lower }}">
+          data-last="{{ c.last_report }}" data-owner="{{ (c.owner_name or '')|lower }}"
+          data-rawname="{{ c.name }}" data-manager="{{ c.manager_name }}">
         <td class="px-5 py-3.5">
           <div class="flex items-center gap-3">
             <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0">{{ c.name[:1] }}</span>
@@ -194,6 +195,10 @@
             <button disabled title="API 키를 먼저 등록하세요"
                     class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-300 font-semibold cursor-not-allowed">생성</button>
             {% endif %}
+            <button onclick="openEdit({{ c.id }})" title="수정"
+                    class="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
             <button onclick="delClient({{ c.id }}, {{ c.name|tojson }}, this)" title="삭제"
                     class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -214,6 +219,33 @@
     <p class="text-xs text-slate-400 mt-1">위에서 시트 업로드 또는 개별 추가로 시작하세요.</p>
   </div>
   {% endif %}
+</div>
+
+<!-- 광고주 수정 모달 -->
+<div id="edit-modal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-slate-900/40 backdrop-blur-[2px]">
+  <div class="bg-white rounded-2xl shadow-pop w-[440px] max-w-[92vw] p-6">
+    <h3 class="text-base font-bold text-slate-900 mb-4">광고주 수정</h3>
+    <form id="edit-form" class="grid grid-cols-2 gap-3">
+      <input type="hidden" id="e-id">
+      <div class="col-span-2"><label class="block text-xs font-semibold text-slate-500 mb-1">광고주명</label>
+        <input id="e-name" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500/40 focus:outline-none"></div>
+      <div><label class="block text-xs font-semibold text-slate-500 mb-1">customer_id</label>
+        <input id="e-custid" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-500/40 focus:outline-none"></div>
+      <div><label class="block text-xs font-semibold text-slate-500 mb-1">매체</label>
+        <select id="e-media" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500/40 focus:outline-none"><option>파워링크</option><option>브랜드검색</option><option>쇼핑검색</option></select></div>
+      <div class="col-span-2"><label class="block text-xs font-semibold text-slate-500 mb-1">api_key <span class="font-normal text-slate-400">(바꿀 때만 입력)</span></label>
+        <input id="e-key" placeholder="변경 시에만 입력" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-500/40 focus:outline-none"></div>
+      <div class="col-span-2"><label class="block text-xs font-semibold text-slate-500 mb-1">api_secret <span class="font-normal text-slate-400">(바꿀 때만 입력)</span></label>
+        <input id="e-secret" placeholder="변경 시에만 입력" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-500/40 focus:outline-none"></div>
+      <div class="col-span-2"><label class="block text-xs font-semibold text-slate-500 mb-1">담당 마케터</label>
+        <input id="e-manager" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500/40 focus:outline-none"></div>
+    </form>
+    <p class="text-[11px] text-slate-400 mt-2">키를 바꾸면 저장 시 자동으로 유효성 검증합니다. 키 칸을 비워두면 기존 키가 유지됩니다.</p>
+    <div class="flex justify-end gap-2 mt-5">
+      <button onclick="closeEdit()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">취소</button>
+      <button onclick="saveEdit()" id="edit-save" class="px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg">저장</button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -314,6 +346,33 @@ async function generateAll(){
   }catch(e){
     toast('예약 오류: '+e, 'error'); btn.disabled=false; btn.classList.remove('opacity-50');
   }
+}
+
+// 광고주 수정
+function openEdit(id){
+  const r=document.querySelector(`tr[data-cid="${id}"]`);
+  document.getElementById('e-id').value=id;
+  document.getElementById('e-name').value=r.dataset.rawname||'';
+  document.getElementById('e-custid').value=r.dataset.custid||'';
+  document.getElementById('e-media').value=r.dataset.media||'파워링크';
+  document.getElementById('e-manager').value=r.dataset.manager||'';
+  document.getElementById('e-key').value=''; document.getElementById('e-secret').value='';
+  document.getElementById('edit-modal').style.display='flex';
+}
+function closeEdit(){ document.getElementById('edit-modal').style.display='none'; }
+async function saveEdit(){
+  const id=document.getElementById('e-id').value;
+  const btn=document.getElementById('edit-save'); btn.disabled=true; btn.textContent='저장 중...';
+  const g=x=>document.getElementById(x).value;
+  const fd=new FormData();
+  fd.append('name',g('e-name')); fd.append('naver_customer_id',g('e-custid'));
+  fd.append('media',g('e-media')); fd.append('manager_name',g('e-manager'));
+  fd.append('api_key',g('e-key')); fd.append('api_secret',g('e-secret'));
+  try{
+    const d=await (await fetch(`/clients/${id}/update`,{method:'POST',body:fd})).json();
+    if(d.ok){ toast('수정됨','success'); setTimeout(()=>location.reload(),600); }
+    else { toast(d.error||'수정 실패','error'); btn.disabled=false; btn.textContent='저장'; }
+  }catch(e){ toast('오류: '+e,'error'); btn.disabled=false; btn.textContent='저장'; }
 }
 
 // 삭제

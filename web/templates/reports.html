@@ -97,7 +97,7 @@
             <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0">{{ r.client_name[:1] }}</span>
             <div class="min-w-0">
               <span class="font-semibold text-slate-800">{{ r.client_name }}</span>
-              {% if r.assignee_name %}<span class="block text-[11px] text-brand-600">→ {{ r.assignee_name }} 할당</span>{% endif %}
+              {% if r.assignee_name %}<span class="block text-[11px] text-brand-600">→ {{ r.assignee_name }} 할당{% if sess.role in ('admin','manager') %} <button onclick="unassign({{ r.id }})" class="text-slate-300 hover:text-red-500 align-middle" title="할당 해제">✕</button>{% endif %}</span>{% endif %}
             </div>
           </div>
         </td>
@@ -108,7 +108,7 @@
           <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>완료</span>
           {% elif r.status=='error' %}
           <span class="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">✕ 실패</span>
-          {% if r.error %}<div class="text-[11px] text-red-400 mt-1 max-w-sm truncate" title="{{ r.error }}">{{ r.error }}</div>{% endif %}
+          {% if r.friendly_error %}<div class="text-[11px] text-red-500 mt-1 max-w-sm" title="{{ r.error }}">{{ r.friendly_error }}</div>{% endif %}
           {% elif r.status=='queued' %}
           <span class="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">⏳ 예약 대기</span>
           {% else %}
@@ -207,6 +207,14 @@ function openAssign(){
   document.getElementById('assign-modal').style.display='flex';
 }
 function closeAssign(){ document.getElementById('assign-modal').style.display='none'; }
+async function unassign(id){
+  if(!confirm('이 보고서의 할당을 해제할까요?')) return;
+  try{
+    const d=await (await fetch(`/reports/${id}/unassign`,{method:'POST'})).json();
+    if(d.ok){ toast('할당 해제됨','success'); setTimeout(()=>location.reload(),600); }
+    else toast(d.error||'해제 실패','error');
+  }catch(e){ toast('오류: '+e,'error'); }
+}
 async function doAssign(){
   const sel=collectChecked(); const mid=document.getElementById('assign-member').value;
   if(!sel.length){ toast('선택된 보고서가 없습니다','error'); return; }

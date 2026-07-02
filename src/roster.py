@@ -17,7 +17,16 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
+
+
+def norm_customer_id(s) -> str:
+    """엑셀발 '4273.0'·공백·따옴표 정리 → 순수 숫자 id 문자열."""
+    cid = str(s or "").strip().strip('"\'')
+    cid = re.sub(r"\s+", "", cid)
+    cid = re.sub(r"\.0+$", "", cid)   # 4273.0 → 4273
+    return cid
 
 from openpyxl import Workbook, load_workbook
 
@@ -65,10 +74,12 @@ def _rows_to_records(header_row, data_rows) -> list[dict]:
             if not key:
                 continue
             rec[key] = ("" if val is None else str(val).strip())
-        cid = rec.get("customer_id", "").strip()
+        cid = norm_customer_id(rec.get("customer_id", ""))
         if not cid:
             continue   # customer_id 없는 행(빈 줄/주석) 스킵
         rec["customer_id"] = cid
+        rec["api_key"] = (rec.get("api_key") or "").strip()
+        rec["api_secret"] = (rec.get("api_secret") or "").strip()
         rec["active"] = _truthy(rec.get("active"))
         rec["agency"] = _truthy(rec.get("agency")) if rec.get("agency") not in (None, "") else False
         records.append(rec)

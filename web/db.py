@@ -157,6 +157,22 @@ def upsert_client(naver_customer_id: str | None, name: str,
             return cur.lastrowid, True
 
 
+def edit_client(client_id: int, name, naver_customer_id, media,
+                manager_name, manager_email, api_key="", api_secret="") -> bool:
+    """광고주 정보 수정. api_key/secret 은 값이 있을 때만 교체(빈값이면 기존 유지).
+    반환: 키가 새로 입력되었는지(재검증 필요 여부)."""
+    with get_conn() as conn:
+        row = conn.execute("SELECT api_key, api_secret FROM clients WHERE id=?", (client_id,)).fetchone()
+        key_changed = bool(api_key and api_secret)
+        ak = api_key if api_key else (row["api_key"] if row else "")
+        asec = api_secret if api_secret else (row["api_secret"] if row else "")
+        conn.execute(
+            """UPDATE clients SET name=?, naver_customer_id=?, media=?,
+               manager_name=?, manager_email=?, api_key=?, api_secret=? WHERE id=?""",
+            (name, naver_customer_id, media, manager_name, manager_email, ak, asec, client_id))
+    return key_changed
+
+
 def delete_client(client_id: int):
     """광고주 삭제 + 연결된 보고서·배정 정리(고아 레코드 방지)."""
     with get_conn() as conn:

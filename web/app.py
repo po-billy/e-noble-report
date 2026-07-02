@@ -27,9 +27,10 @@ sys.path.insert(0, str(SRC))
 
 load_dotenv(ROOT / ".env")
 
+from roster import norm_customer_id
 from web.db import (
     init_db, get_all_clients, get_clients_by_owner, get_client,
-    upsert_client, delete_client, delete_clients_by_owner,
+    upsert_client, edit_client, delete_client, delete_clients_by_owner,
     create_report, update_report, get_report, list_reports, delete_report,
     enqueue_report, claim_next_report, requeue_stuck, report_status_counts,
     set_key_status, last_report_dates, get_user_names,
@@ -147,6 +148,20 @@ def _can_see_report(sess, r: dict) -> bool:
     return member_self is not None and r.get("assigned_to") == member_self
 
 
+def _friendly_error(msg: str) -> str:
+    """실패 사유를 비개발자 언어로. 원문은 별도로 툴팁 노출."""
+    m = (msg or "").lower()
+    if any(k in m for k in ("401", "403", "signature", "invalid", "unauthor", "forbidden", "권한", "인증")):
+        return "API 키 오류 (틀렸거나 만료됨) — 광고주 [수정]에서 키를 고쳐 주세요."
+    if any(k in m for k in ("timeout", "timed out", "temporarily", "connection", "네트워크", "지연")):
+        return "네이버 응답 지연 — [다시 생성]으로 재시도해 주세요."
+    if any(k in m for k in ("데이터 수집 실패", "no data", "없음", "empty", "0 rows")):
+        return "해당 월 집행 데이터가 없거나 수집 실패."
+    if "anthropic" in m or "코멘트" in m:
+        return "AI 코멘트 생성 실패 (숫자는 정상일 수 있음)."
+    return msg or "알 수 없는 오류"
+
+
 # ── 로그인 ──────────────────────────────────────────────
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -248,8 +263,9 @@ async def clients_add(
     sess = get_session(request)
     if not sess:
         return RedirectResponse("/login", status_code=302)
+    cid = norm_customer_id(naver_customer_id)
     cid_db, _ = upsert_client(
-        naver_customer_id=naver_customer_id.strip(), name=name.strip(),
+        naver_customer_id=cid, name=name.strip(),
         owner_id=sess["user_id"],
         api_key=api_key.strip(), api_secret=api_secret.strip(),
         media=media.strip(), manager_name=manager_name.strip(),
@@ -258,10 +274,40 @@ async def clients_add(
     # 키 유효성 검증(조회 전용 1회) → 대시보드 '정보 없음' 표기용
     if api_key.strip() and api_secret.strip():
         from collectors.naver_searchad import validate_account
-        ok = await asyncio.to_thread(validate_account, naver_customer_id.strip(),
-                                     api_key.strip(), api_secret.strip())
+        ok = await asyncio.to_thread(validate_account, cid, api_key.strip(), api_secret.strip())
         set_key_status(cid_db, "ok" if ok else "invalid")
     return RedirectResponse(f"/clients?added={name.strip()}", status_code=302)
+
+
+@app.post("/clients/{client_id}/update")
+async def clients_update(
+    request: Request, client_id: int,
+    name: str = Form(...),
+    naver_customer_id: str = Form(...),
+    api_key: str = Form(""),
+    api_secret: str = Form(""),
+    media: str = Form("파워링크"),
+    manager_name: str = Form(""),
+    manager_email: str = Form(""),
+):
+    """광고주 정보 수정(키 교체·오타). 빈 키는 기존 유지. 키 바뀌면 재검증."""
+    sess = get_session(request)
+    if not sess:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    c = get_client(client_id)
+    if not c:
+        return JSONResponse({"error": "없는 광고주"}, status_code=404)
+    if not _owns(sess, c.get("owner_id")):
+        return JSONResponse({"error": "권한 없음"}, status_code=403)
+    cid = norm_customer_id(naver_customer_id)
+    key_changed = edit_client(client_id, name.strip(), cid, media.strip(),
+                              manager_name.strip(), manager_email.strip(),
+                              api_key.strip(), api_secret.strip())
+    if key_changed:
+        from collectors.naver_searchad import validate_account
+        ok = await asyncio.to_thread(validate_account, cid, api_key.strip(), api_secret.strip())
+        set_key_status(client_id, "ok" if ok else "invalid")
+    return JSONResponse({"ok": True})
 
 
 @app.post("/clients/{client_id}/delete")
@@ -476,6 +522,8 @@ async def reports_page(request: Request):
         if show_owner:
             r["owner_name"] = un.get(r.get("owner_id"), "-")
         r["assignee_name"] = un.get(r.get("assigned_to")) if r.get("assigned_to") else ""
+        if r.get("status") == "error":
+            r["friendly_error"] = _friendly_error(r.get("error", ""))
     c = report_status_counts(ov, ms)
     # 할당 대상(팀원) 목록 — 팀장은 소속 팀원, 관리자는 전체 팀원
     if _is_admin(sess):
@@ -600,6 +648,19 @@ async def reports_assign(request: Request, ids: str = Form(""), member_id: int =
             assign_report(int(rid), member_id)
             n += 1
     return JSONResponse({"assigned": n})
+
+
+@app.post("/reports/{report_id}/unassign")
+async def report_unassign(report_id: int, request: Request):
+    """할당 해제. 팀장/관리자, 내가 관리하는 보고서만."""
+    sess = get_session(request)
+    if not sess or sess["role"] not in ("admin", "manager"):
+        return JSONResponse({"error": "권한 없음"}, status_code=403)
+    r = get_report(report_id)
+    if not r or not _owns(sess, r.get("owner_id")):
+        return JSONResponse({"error": "권한 없음"}, status_code=403)
+    assign_report(report_id, None)
+    return JSONResponse({"ok": True})
 
 
 # ── 다운로드 ─────────────────────────────────────────────
