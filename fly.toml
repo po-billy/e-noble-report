@@ -1,0 +1,28 @@
+# Fly.io 배포 설정 — e-noble-report
+# 볼륨(/app/data)에 DB·보고서·업로드가 영속 저장됩니다.
+app = "e-noble-report"
+primary_region = "nrt"        # 도쿄 (한국 최근접)
+
+[build]
+
+[env]
+  NAVER_MOCK = "false"
+  DATA_DIR = "/app/data"       # DB·output·uploads 를 볼륨에 저장
+  # 비밀값(ANTHROPIC_API_KEY, SESSION_SECRET)은 fly.toml 에 넣지 말고
+  #   fly secrets set 으로 등록하세요.
+
+[http_service]
+  internal_port = 8000         # Dockerfile 의 uvicorn 포트와 일치
+  force_https = true
+  auto_stop_machines = "off"   # 테스트 중 항상 켜둠(콜드스타트·생성중단 방지)
+  auto_start_machines = true
+  min_machines_running = 1     # SQLite 단일 인스턴스 → 반드시 1대
+
+# 영속 볼륨: DB/보고서/업로드 유지 (배포·재시작해도 안 날아감)
+[[mounts]]
+  source = "ad_report_data"
+  destination = "/app/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "2048mb"            # 엑셀 생성 OOM 방지

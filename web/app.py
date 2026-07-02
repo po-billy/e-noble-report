@@ -43,10 +43,13 @@ _STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
-OUTPUT_DIR = ROOT / "output"
-UPLOAD_DIR = ROOT / "uploads"
-OUTPUT_DIR.mkdir(exist_ok=True)
-UPLOAD_DIR.mkdir(exist_ok=True)
+# DATA_DIR: 영속 저장 루트. Fly 볼륨(/app/data) 마운트 시 여기에 DB·보고서·업로드가 모두 남는다.
+# 로컬은 미설정 → 프로젝트 루트 사용(기존 동작 유지).
+DATA_DIR = Path(os.getenv("DATA_DIR", str(ROOT)))
+OUTPUT_DIR = DATA_DIR / "output"
+UPLOAD_DIR = DATA_DIR / "uploads"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 SECRET_KEY = os.getenv("SESSION_SECRET", "change-me-in-production")
 signer = URLSafeTimedSerializer(SECRET_KEY)
