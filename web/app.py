@@ -75,8 +75,13 @@ jobs: dict[str, dict] = {}
 
 
 # ── 세션 / 인증 ─────────────────────────────────────────
+# 비밀번호 해싱용 고정 솔트 — SESSION_SECRET 과 분리한다.
+# (세션키를 바꿔도 비밀번호/로그인이 깨지지 않게 하기 위함)
+PW_SALT = os.getenv("PASSWORD_SALT", "e-noble-report::pw-salt::v1")
+
+
 def _hash_pw(pw: str) -> str:
-    return hashlib.pbkdf2_hmac("sha256", pw.encode(), SECRET_KEY.encode(), 100_000).hex()
+    return hashlib.pbkdf2_hmac("sha256", pw.encode(), PW_SALT.encode(), 100_000).hex()
 
 
 def get_session(request: Request) -> dict | None:
