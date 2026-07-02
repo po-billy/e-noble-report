@@ -753,18 +753,33 @@ async def manual_page(request: Request):
 
 
 # ── 팀원(로그인 계정) 관리 ────────────────────────────────
+def _org_ctx() -> dict:
+    """팀원 관리 화면용 컨텍스트: 전체 계정 + 조직도(팀장별 팀원 / 미배정)."""
+    from web.db import get_conn
+    with get_conn() as conn:
+        users = [dict(r) for r in conn.execute(
+            "SELECT * FROM users ORDER BY created_at DESC").fetchall()]
+    managers = [u for u in users if u["role"] == "manager"]
+    members = [u for u in users if u["role"] == "member"]
+    admins = [u for u in users if u["role"] == "admin"]
+    mgr_ids = {m["id"] for m in managers}
+    org_managers = [
+        {"id": m["id"], "name": m["name"],
+         "members": [x for x in members if x.get("parent_id") == m["id"]]}
+        for m in managers
+    ]
+    org_unassigned = [x for x in members if not x.get("parent_id") or x["parent_id"] not in mgr_ids]
+    return {"users": users, "managers": managers, "admins": admins,
+            "org_managers": org_managers, "org_unassigned": org_unassigned}
+
+
 @app.get("/admin/users", response_class=HTMLResponse)
 async def admin_users(request: Request):
     sess = get_session(request)
     if not sess or sess["role"] != "admin":
         return RedirectResponse("/", status_code=302)
-    from web.db import get_conn
-    with get_conn() as conn:
-        users = [dict(r) for r in conn.execute(
-            "SELECT * FROM users ORDER BY created_at DESC").fetchall()]
     return render(request, "admin_users.html", active_page="users",
-                  users=users, managers=get_users_by_role("manager"),
-                  error=None, success=None)
+                  error=None, success=None, **_org_ctx())
 
 
 @app.post("/admin/users/create")
@@ -781,17 +796,12 @@ async def create_user(
     role = role if role in ("admin", "manager", "member") else "member"
     with get_conn() as conn:
         if conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone():
-            users = [dict(r) for r in conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()]
             return render(request, "admin_users.html", active_page="users",
-                          users=users, managers=get_users_by_role("manager"),
-                          error=f"이미 존재하는 이메일입니다: {email}", success=None)
+                          error=f"이미 존재하는 이메일입니다: {email}", success=None, **_org_ctx())
         conn.execute("INSERT INTO users (email, password_hash, name, role) VALUES (?,?,?,?)",
                      (email, _hash_pw(password), name.strip(), role))
-    with get_conn() as conn:
-        users = [dict(r) for r in conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()]
     return render(request, "admin_users.html", active_page="users",
-                  users=users, managers=get_users_by_role("manager"),
-                  error=None, success=f"{name} 계정이 생성되었습니다.")
+                  error=None, success=f"{name} 계정이 생성되었습니다.", **_org_ctx())
 
 
 @app.post("/admin/users/{user_id}/delete")
