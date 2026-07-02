@@ -52,6 +52,13 @@
   <div class="flex items-center gap-2">
     <input id="f-date" type="date" onchange="filterReports()" title="생성일"
            class="border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-slate-600 focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none" />
+    {% if can_assign %}
+    <select id="f-assignee" onchange="filterReports()" class="border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none">
+      <option value="">담당 전체</option>
+      <option value="__none__">미할당</option>
+      {% for m in team_members %}<option value="{{ m.name|lower }}">{{ m.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
     <select id="f-ym" onchange="filterReports()" class="border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none">
       <option value="">보고월 전체</option>
       {% for y in [now_year, now_year-1] %}{% for m in range(1,13) %}
@@ -86,7 +93,8 @@
           data-id="{{ r.id }}" data-status="{{ r.status }}"
           data-ym="{{ r.year }}-{{ '%02d'|format(r.month) }}"
           data-date="{{ r.created_at[:10] if r.created_at else '' }}"
-          data-name="{{ r.client_name|lower }}" data-done="{{ 1 if r.status=='done' and r.filename else 0 }}">
+          data-name="{{ r.client_name|lower }}" data-done="{{ 1 if r.status=='done' and r.filename else 0 }}"
+          data-assignee="{{ (r.assignee_name or '')|lower }}">
         <td class="px-5 py-3.5">
           {% if r.status=='done' and r.filename %}
           <input type="checkbox" class="rchk rounded border-slate-300 text-brand-600 focus:ring-brand-500/40" value="{{ r.id }}">
@@ -108,7 +116,7 @@
           <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>완료</span>
           {% elif r.status=='error' %}
           <span class="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">✕ 실패</span>
-          {% if r.friendly_error %}<div class="text-[11px] text-red-500 mt-1 max-w-sm" title="{{ r.error }}">{{ r.friendly_error }}</div>{% endif %}
+          {% if r.friendly_error %}<div class="text-[11px] text-red-500 mt-1 max-w-sm" title="{{ r.error }}">{{ r.friendly_error }}{% if 'API 키' in r.friendly_error %} <a href="/clients" class="underline text-brand-600 font-semibold">키 고치기</a>{% endif %}</div>{% endif %}
           {% elif r.status=='queued' %}
           <span class="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">⏳ 예약 대기</span>
           {% else %}
@@ -181,12 +189,14 @@ function filterReports(){
   const date=document.getElementById('f-date').value;
   const ym=document.getElementById('f-ym').value;
   const name=(document.getElementById('f-name').value||'').trim().toLowerCase();
+  const asg=(document.getElementById('f-assignee')||{}).value||'';
   let shown=0;
   const active=['queued','processing','generating','fetching'];
   document.querySelectorAll('.rrow').forEach(r=>{
     const st=r.dataset.status;
     const tabOk = curTab==='all' || st===curTab || (curTab==='active' && active.includes(st));
-    const ok = tabOk
+    const asgOk = !asg || (asg==='__none__' ? !(r.dataset.assignee) : r.dataset.assignee===asg);
+    const ok = tabOk && asgOk
       && (!date || r.dataset.date===date)
       && (!ym || r.dataset.ym===ym)
       && (!name || (r.dataset.name||'').includes(name));
