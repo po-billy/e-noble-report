@@ -37,7 +37,10 @@ from collectors.naver_searchad import is_connected, MOCK_MODE
 init_db()
 
 app = FastAPI(title="보고서B 자동화")
-app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
+# 정적 폴더가 없으면(예: git 빈 폴더 미커밋) 생성 후 마운트 — 없으면 시작 시 크래시함
+_STATIC_DIR = Path(__file__).parent / "static"
+_STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 OUTPUT_DIR = ROOT / "output"
