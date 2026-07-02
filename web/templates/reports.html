@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}생성된 보고서{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-[26px] font-bold text-slate-900 tracking-tight">생성된 보고서</h1>
+    <p class="text-slate-500 mt-1 text-sm">완료 보고서를 개별·<b class="text-slate-600">일괄(zip)</b>로 받고, 실패 로그를 확인합니다.</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <button onclick="delSelected()"
+            class="h-[38px] px-3.5 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-600 text-sm font-semibold rounded-lg flex items-center gap-1.5 shadow-card transition-colors">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      선택 삭제
+    </button>
+    <button onclick="downloadZip(false)"
+            class="h-[38px] px-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg flex items-center gap-1.5 shadow-card transition-colors">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+      선택 다운로드
+    </button>
+    <button onclick="downloadZip(true)" {% if not done_count %}disabled{% endif %}
+            class="h-[38px] px-4 bg-brand-600 hover:bg-brand-700 active:scale-[.98] text-white text-sm font-semibold rounded-lg flex items-center gap-1.5 shadow-soft transition-all disabled:opacity-50">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      전체 다운로드 (<span id="done-cnt">{{ done_count }}</span>)
+    </button>
+  </div>
+</div>
+
+<!-- 상태 탭 + 필터 -->
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <div class="inline-flex rounded-xl border border-slate-200 p-0.5 bg-white shadow-card">
+    <button data-tab="all" onclick="setTab('all')" class="tab px-3.5 py-1.5 text-sm font-semibold rounded-lg text-slate-500">전체 <span class="text-slate-400">{{ total_count }}</span></button>
+    <button data-tab="done" onclick="setTab('done')" class="tab px-3.5 py-1.5 text-sm font-semibold rounded-lg text-slate-500">완료 <span class="text-emerald-500">{{ done_count }}</span></button>
+    <button data-tab="error" onclick="setTab('error')" class="tab px-3.5 py-1.5 text-sm font-semibold rounded-lg text-slate-500">실패 <span class="text-red-500">{{ failed_count }}</span></button>
+  </div>
+  <div class="flex items-center gap-2">
+    <input id="f-date" type="date" onchange="filterReports()" title="생성일"
+           class="border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-slate-600 focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none" />
+    <select id="f-ym" onchange="filterReports()" class="border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none">
+      <option value="">보고월 전체</option>
+      {% for y in [now_year, now_year-1] %}{% for m in range(1,13) %}
+      <option value="{{ y }}-{{ '%02d'|format(m) }}">{{ y }}년 {{ m }}월</option>
+      {% endfor %}{% endfor %}
+    </select>
+    <div class="relative">
+      <input id="f-name" oninput="filterReports()" placeholder="광고주 검색"
+             class="w-48 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-sm focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none" />
+      <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white border border-slate-200 rounded-2xl shadow-card overflow-hidden">
+  {% if reports %}
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/50">
+        <th class="px-5 py-3 text-left w-10"><input type="checkbox" id="chk-all" onclick="toggleAll(this)" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500/40"></th>
+        <th class="px-5 py-3 text-left font-semibold">광고주</th>
+        <th class="px-5 py-3 text-left font-semibold">보고 기간</th>
+        <th class="px-5 py-3 text-left font-semibold">상태</th>
+        <th class="px-5 py-3 text-left font-semibold">생성일시</th>
+        <th class="px-5 py-3 text-right font-semibold">액션</th>
+      </tr>
+    </thead>
+    <tbody id="rrows" class="divide-y divide-slate-100">
+      {% for r in reports %}
+      <tr class="rrow group hover:bg-slate-50/70 transition-colors"
+          data-id="{{ r.id }}" data-status="{{ r.status }}"
+          data-ym="{{ r.year }}-{{ '%02d'|format(r.month) }}"
+          data-date="{{ r.created_at[:10] if r.created_at else '' }}"
+          data-name="{{ r.client_name|lower }}" data-done="{{ 1 if r.status=='done' and r.filename else 0 }}">
+        <td class="px-5 py-3.5">
+          {% if r.status=='done' and r.filename %}
+          <input type="checkbox" class="rchk rounded border-slate-300 text-brand-600 focus:ring-brand-500/40" value="{{ r.id }}">
+          {% endif %}
+        </td>
+        <td class="px-5 py-3.5">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0">{{ r.client_name[:1] }}</span>
+            <span class="font-semibold text-slate-800">{{ r.client_name }}</span>
+          </div>
+        </td>
+        <td class="px-5 py-3.5 text-slate-600 font-medium">{{ r.year }}년 {{ r.month }}월</td>
+        <td class="px-5 py-3.5">
+          {% if r.status=='done' %}
+          <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>완료</span>
+          {% elif r.status=='error' %}
+          <span class="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">✕ 실패</span>
+          {% if r.error %}<div class="text-[11px] text-red-400 mt-1 max-w-sm truncate" title="{{ r.error }}">{{ r.error }}</div>{% endif %}
+          {% else %}
+          <span class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">생성 중</span>
+          {% endif %}
+        </td>
+        <td class="px-5 py-3.5 text-slate-400 text-xs">{{ r.created_at[:16] if r.created_at else '-' }}</td>
+        <td class="px-5 py-3.5">
+          <div class="flex items-center justify-end gap-1.5">
+            {% if r.status=='done' and r.filename %}
+            <a href="/download/{{ r.filename }}" class="text-brand-600 hover:text-brand-700 font-semibold text-sm">다운로드</a>
+            {% endif %}
+            <button onclick="delReport({{ r.id }}, this)" title="삭제"
+                    class="p-1.5 rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div id="empty-filter" class="hidden px-5 py-12 text-center text-sm text-slate-400">조건에 맞는 보고서가 없습니다.</div>
+  {% else %}
+  <div class="px-5 py-16 text-center">
+    <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+      <svg class="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h6v6M7 3h7l5 5v11a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/></svg>
+    </div>
+    <p class="text-sm font-medium text-slate-500">아직 생성된 보고서가 없습니다.</p>
+    <p class="text-xs text-slate-400 mt-1"><a href="/clients" class="text-brand-600 font-semibold hover:underline">광고주 · 생성</a>에서 보고서를 만들어보세요.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let curTab='all';
+function setTab(t){
+  curTab=t;
+  document.querySelectorAll('.tab').forEach(b=>{
+    const on=b.dataset.tab===t;
+    b.classList.toggle('bg-brand-50',on); b.classList.toggle('text-brand-700',on);
+    b.classList.toggle('text-slate-500',!on);
+  });
+  filterReports();
+}
+function filterReports(){
+  const date=document.getElementById('f-date').value;
+  const ym=document.getElementById('f-ym').value;
+  const name=(document.getElementById('f-name').value||'').trim().toLowerCase();
+  let shown=0;
+  document.querySelectorAll('.rrow').forEach(r=>{
+    const ok = (curTab==='all' || r.dataset.status===curTab)
+      && (!date || r.dataset.date===date)
+      && (!ym || r.dataset.ym===ym)
+      && (!name || (r.dataset.name||'').includes(name));
+    r.style.display=ok?'':'none'; if(ok) shown++;
+  });
+  const ef=document.getElementById('empty-filter');
+  if(ef) ef.classList.toggle('hidden', shown!==0);
+}
+function toggleAll(m){ document.querySelectorAll('.rrow:not([style*="none"]) .rchk').forEach(c=>c.checked=m.checked); }
+
+function collectChecked(){ return [...document.querySelectorAll('.rchk:checked')].map(c=>c.value); }
+
+function downloadZip(all){
+  let ids='';
+  if(!all){ const s=collectChecked(); if(!s.length){ toast('선택된 보고서가 없습니다','error'); return; } ids=s.join(','); }
+  const f=document.createElement('form'); f.method='POST'; f.action='/reports/download-zip';
+  const i=document.createElement('input'); i.type='hidden'; i.name='ids'; i.value=ids;
+  f.appendChild(i); document.body.appendChild(f); f.submit(); f.remove();
+  toast('zip 생성 중… 잠시 후 다운로드됩니다','info');
+}
+
+async function _postDelete(ids){
+  const fd=new FormData(); fd.append('ids', ids.join(','));
+  const res=await fetch('/reports/delete',{method:'POST',body:fd});
+  return res.json();
+}
+async function delReport(id, btn){
+  const ok=await uiConfirm({title:'보고서 삭제', body:'이 보고서를 삭제할까요? 파일도 함께 삭제됩니다.', ok:'삭제'});
+  if(!ok) return;
+  btn.disabled=true;
+  const d=await _postDelete([String(id)]);
+  if(d.ok){ btn.closest('tr').remove(); recount(); toast('삭제됨','success'); }
+  else { toast('삭제 실패','error'); btn.disabled=false; }
+}
+async function delSelected(){
+  const s=collectChecked();
+  if(!s.length){ toast('선택된 보고서가 없습니다','error'); return; }
+  const ok=await uiConfirm({title:'선택 삭제', body:`${s.length}건을 삭제할까요? 파일도 함께 삭제됩니다.`, ok:'삭제'});
+  if(!ok) return;
+  const d=await _postDelete(s);
+  if(d.ok){ s.forEach(id=>{ const r=document.querySelector(`.rrow[data-id="${id}"]`); if(r) r.remove(); }); recount(); toast(`${d.deleted}건 삭제됨`,'success'); }
+  else toast('삭제 실패','error');
+}
+function recount(){
+  const rows=[...document.querySelectorAll('.rrow')];
+  const done=rows.filter(r=>r.dataset.status==='done').length;
+  const err=rows.filter(r=>r.dataset.status==='error').length;
+  document.getElementById('done-cnt').textContent=done;
+  document.querySelector('.tab[data-tab="all"] span').textContent=rows.length;
+  document.querySelector('.tab[data-tab="done"] span').textContent=done;
+  document.querySelector('.tab[data-tab="error"] span').textContent=err;
+}
+setTab('all');
+</script>
+{% endblock %}

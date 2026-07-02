@@ -1,0 +1,10 @@
+https://naver.github.io/searchad-apidoc/#/tags/AdKeyword
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fkeywords%7B%3Fids%7D
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fkeywords%7B%3FnccAdgroupId,baseSearchId,recordSize,selector%7D
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fkeywords%7B%3FnccLabelId%7D
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fkeywords~2F%7BnccKeywordId%7D
+https://naver.github.io/searchad-apidoc/#/operations/POST/~2Fncc~2Fkeywords%7B%3FnccAdgroupId%7D
+https://naver.github.io/searchad-apidoc/#/operations/PUT/~2Fncc~2Fkeywords~2F%7BnccKeywordId%7D%7B%3Ffields%7D
+https://naver.github.io/searchad-apidoc/#/operations/PUT/~2Fncc~2Fkeywords%7B%3Ffields%7D
+https://naver.github.io/searchad-apidoc/#/operations/DELETE/~2Fncc~2Fkeywords~2F%7BnccKeywordId%7D
+https://naver.github.io/searchad-apidoc/#/operations/DELETE/~2Fncc~2Fkeywords%7B%3Fids%7D

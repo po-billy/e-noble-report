@@ -1,0 +1,9 @@
+https://naver.github.io/searchad-apidoc/#/tags/Campaign
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fcampaigns%7B%3FcampaignType,baseSearchId,recordSize,selector%7D
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fcampaigns%7B%3Fids%7D
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fcampaigns~2Fshared-budgets~2F%7BsharedBudgetId%7D
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fcampaigns~2F%7BcampaignId%7D
+https://naver.github.io/searchad-apidoc/#/operations/POST/~2Fncc~2Fcampaigns
+https://naver.github.io/searchad-apidoc/#/operations/PUT/~2Fncc~2Fcampaigns~2F%7BcampaignId%7D%7B%3Ffields%7D
+https://naver.github.io/searchad-apidoc/#/operations/DELETE/~2Fncc~2Fcampaigns~2F%7BcampaignId%7D
+https://naver.github.io/searchad-apidoc/#/operations/DELETE/~2Fncc~2Fcampaigns%7B%3Fids%7D

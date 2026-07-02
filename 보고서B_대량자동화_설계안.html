@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>보고서B 대량 자동화 설계안</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ['Pretendard','Apple SD Gothic Neo','Malgun Gothic','맑은 고딕','system-ui','sans-serif'] }
+} } }
+</script>
+<style>
+  body{font-family:Pretendard,'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',system-ui,sans-serif;background:#f4f5f7;color:#17171c}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#d6d9df;border-radius:8px}
+  .card{background:#fff;border-radius:24px;box-shadow:0 6px 28px rgba(20,20,40,.05)}
+  .soft{background:#fff;border-radius:18px;box-shadow:0 3px 16px rgba(20,20,40,.04)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px}
+  .tile{width:60px;height:60px;border-radius:19px;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;box-shadow:0 8px 18px rgba(0,0,0,.12)}
+  .sec-label{font-size:12px;font-weight:800;color:#a0a4ad;letter-spacing:.02em}
+  h2.t{font-size:22px;font-weight:800;letter-spacing:-.02em;color:#17171c}
+  @media print{body{background:#fff}.card,.soft{box-shadow:none;border:1px solid #eee}}
+</style>
+</head>
+<body>
+<div class="max-w-3xl mx-auto px-5 py-8 space-y-7">
+
+  <!-- ── 상단 브랜드 ── -->
+  <div class="flex items-center justify-between px-1">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-xl bg-[#2c54d4] text-white font-extrabold flex items-center justify-center">e</div>
+      <span class="text-[13px] font-semibold text-slate-500">e-noble · 광고 보고서 자동화</span>
+    </div>
+    <span class="pill" style="background:#ede9fe;color:#7c3aed">설계안</span>
+  </div>
+
+  <!-- ── HERO (peach) ── -->
+  <section class="card overflow-hidden">
+    <div class="p-8" style="background:linear-gradient(135deg,#fde4cf 0%,#fbd9c0 60%,#f8cbb0 100%)">
+      <span class="pill mb-4" style="background:rgba(255,255,255,.6);color:#9a5b2e">보고서B · 대량 자동화</span>
+      <h1 class="text-[30px] leading-[1.25] font-extrabold text-[#3a2213] tracking-tight">
+        숫자가 아니라<br>인사이트를 본다
+      </h1>
+      <p class="mt-3 text-[14.5px] text-[#7a5638] max-w-md leading-relaxed">
+        단건 보고서B는 검증까지 완성. 다음은 수백 광고주를
+        <b>등록 → 자동 생성 → 자동 검증 → 검수·승인 → 자동 발송</b>으로 돌리는 파이프라인.
+      </p>
+      <div class="mt-5 flex gap-2 text-[26px]">
+        <span class="tile" style="background:#16c47f">🗂️</span>
+        <span class="tile" style="background:#3b82f6">📡</span>
+        <span class="tile" style="background:#8b5cf6">📄</span>
+        <span class="tile" style="background:#2c54d4">✅</span>
+        <span class="tile" style="background:#f97316">✍️</span>
+        <span class="tile" style="background:#ec4899">🚀</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── STATUS + GAUGE ── -->
+  <section>
+    <p class="sec-label mb-2 px-1">01 · 현재 상태</p>
+    <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
+      <!-- gauge -->
+      <div class="card p-6 sm:col-span-2 flex flex-col items-center justify-center">
+        <div class="relative w-[190px]">
+          <svg viewBox="0 0 200 116" class="w-full">
+            <path d="M18 100 A82 82 0 0 1 182 100" fill="none" stroke="#eef0f3" stroke-width="16" stroke-linecap="round"/>
+            <path d="M18 100 A82 82 0 0 1 182 100" fill="none" stroke="url(#g)" stroke-width="16" stroke-linecap="round"/>
+            <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#ff6b6b"/><stop offset=".5" stop-color="#ffb020"/><stop offset="1" stop-color="#16c47f"/>
+            </linearGradient></defs>
+          </svg>
+          <div class="absolute inset-x-0 bottom-1 text-center">
+            <p class="text-[30px] font-extrabold text-[#16c47f] leading-none">9/9</p>
+            <p class="text-[12px] text-slate-400 mt-1">정합성 통과</p>
+          </div>
+        </div>
+        <p class="mt-3 text-[13px] text-slate-500 text-center">에듀윌 실계정 · LibreOffice 대조 검증</p>
+      </div>
+      <!-- stat cards -->
+      <div class="grid grid-cols-3 gap-4 sm:col-span-3">
+        <div class="soft p-5 flex flex-col justify-center">
+          <p class="text-[12.5px] text-slate-400">실계정 검증</p>
+          <p class="text-[22px] font-extrabold mt-1">완료</p>
+        </div>
+        <div class="soft p-5 flex flex-col justify-center">
+          <p class="text-[12.5px] text-slate-400">자동 채움 시트</p>
+          <p class="text-[22px] font-extrabold mt-1">6종</p>
+        </div>
+        <div class="soft p-5 flex flex-col justify-center">
+          <p class="text-[12.5px] text-slate-400">단건 생성</p>
+          <p class="text-[22px] font-extrabold mt-1">~5분</p>
+        </div>
+        <div class="soft p-5 col-span-3">
+          <p class="text-[12px] font-bold text-slate-400 mb-2">해결된 핵심 제약</p>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12.5px] text-slate-600">
+            <div>• 기기 = 캠페인명 <b class="text-[#2c54d4]">_PC/_MO</b></div>
+            <div>• 파워링크만 <b class="text-[#2c54d4]">WEB_SITE</b></div>
+            <div>• 키워드 20만 → 상위50+기타</div>
+            <div>• 수집 재시도·서식·병합</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="soft mt-4 px-5 py-4 text-[14px] text-slate-700" style="background:#f0f5ff">
+      💡 <b>한 줄</b> — <i>"customer_id + 연·월만 주면 검증된 보고서B 1건이 나온다."</i> 단건은 끝, 지금부턴 <b>수백 건 파이프라인</b>이 과제.
+    </div>
+  </section>
+
+  <!-- ── PIPELINE ── -->
+  <section>
+    <p class="sec-label mb-2 px-1">02 · 6단계 파이프라인</p>
+    <div class="card p-6">
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-x-2 gap-y-5">
+        <div class="flex flex-col items-center text-center gap-2">
+          <span class="tile" style="background:#16c47f">🗂️</span>
+          <p class="text-[13px] font-bold">온보딩</p><p class="text-[11px] text-slate-400 -mt-1">담당자</p>
+        </div>
+        <div class="flex flex-col items-center text-center gap-2">
+          <span class="tile" style="background:#3b82f6">📡</span>
+          <p class="text-[13px] font-bold">수집</p><p class="text-[11px] text-slate-400 -mt-1">시스템</p>
+        </div>
+        <div class="flex flex-col items-center text-center gap-2">
+          <span class="tile" style="background:#8b5cf6">📄</span>
+          <p class="text-[13px] font-bold">생성</p><p class="text-[11px] text-slate-400 -mt-1">시스템</p>
+        </div>
+        <div class="flex flex-col items-center text-center gap-2">
+          <span class="relative tile ring-4 ring-[#dbe7ff]" style="background:#2c54d4">✅
+            <span class="absolute -top-2 -right-2 text-[9px] font-extrabold text-white bg-[#ff5a5f] rounded-full px-1.5 py-0.5">핵심</span>
+          </span>
+          <p class="text-[13px] font-bold text-[#2c54d4]">자동 QA</p><p class="text-[11px] text-slate-400 -mt-1">시스템</p>
+        </div>
+        <div class="flex flex-col items-center text-center gap-2">
+          <span class="tile" style="background:#f97316">✍️</span>
+          <p class="text-[13px] font-bold">검수·승인</p><p class="text-[11px] text-slate-400 -mt-1">마케터</p>
+        </div>
+        <div class="flex flex-col items-center text-center gap-2">
+          <span class="tile" style="background:#ec4899">🚀</span>
+          <p class="text-[13px] font-bold">발송·기록</p><p class="text-[11px] text-slate-400 -mt-1">시스템</p>
+        </div>
+      </div>
+      <div class="mt-6 rounded-2xl px-5 py-4 text-[13.5px] leading-relaxed" style="background:#101426;color:#c9d4f0">
+        <b class="text-white">④ 자동 정합성 게이트</b>가 핵심 — Summary=RAW, 키워드합=월합, 누락일 0을 <b class="text-white">코드로 자동 판정</b>.
+        실패분은 <b class="text-white">"재생성 필요"로 자동 분류</b>돼 사람에게 안 올라감. 마케터는 <b class="text-white">인사이트만</b> 검수.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ROLES ── -->
+  <section>
+    <p class="sec-label mb-2 px-1">03 · 역할</p>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="soft p-5">
+        <span class="pill mb-2" style="background:#e7f9f0;color:#0d9f6e">온보딩 담당자</span>
+        <p class="text-[13px] text-slate-600 leading-relaxed">API키·customer_id·수신 이메일을 <b>스프레드시트</b>에 정리 → 등록. 신규 광고주 추가.</p>
+      </div>
+      <div class="soft p-5">
+        <span class="pill mb-2" style="background:#e8eeff;color:#2c54d4">운영 · 아키텍트 (본인)</span>
+        <p class="text-[13px] text-slate-600 leading-relaxed">파이프라인 설계·운영, 월배치 스케줄, <b>QA 룰</b> 관리, 장애 대응, 템플릿 관리.</p>
+      </div>
+      <div class="soft p-5">
+        <span class="pill mb-2" style="background:#fff1e2;color:#d97316">마케터</span>
+        <p class="text-[13px] text-slate-600 leading-relaxed">QA 통과분의 <b>코멘트·인사이트 검수/수정 → 승인</b>. 광고주 커뮤니케이션.</p>
+      </div>
+      <div class="soft p-5">
+        <span class="pill mb-2" style="background:#fbe8f3;color:#c026a5">시스템 (자동)</span>
+        <p class="text-[13px] text-slate-600 leading-relaxed">수집·시트생성·정합성검증·코멘트초안·발송·로그.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── DETAIL ── -->
+  <section>
+    <p class="sec-label mb-2 px-1">04 · 단계별 상세 + 개선 아이디어</p>
+    <div class="space-y-3">
+      <div class="soft p-5 flex gap-4">
+        <span class="tile shrink-0" style="background:#16c47f;font-size:22px">🗂️</span>
+        <div>
+          <p class="font-bold">온보딩 — 크리덴셜 인입</p>
+          <p class="text-[13px] text-slate-600 mt-1 leading-relaxed">담당자가 편한 <b>스프레드시트를 원본</b>으로(광고주·customer_id·키·담당·수신이메일). 시스템은 검증 후 저장.</p>
+          <p class="text-[12.5px] text-[#0d9f6e] mt-1.5">⤷ 구글시트 자동 동기화 · ⚠️ 키 암호화·json 직접편집 금지</p>
+        </div>
+      </div>
+      <div class="soft p-5 flex gap-4">
+        <span class="tile shrink-0" style="background:#3b82f6;font-size:22px">📡</span>
+        <div>
+          <p class="font-bold">수집 — 규모 대응</p>
+          <p class="text-[13px] text-slate-600 mt-1 leading-relaxed">광고주마다 <b>다른 API키 = 다른 rate-limit</b> → 광고주 단위 병렬. <b>100개 × 5병렬 ≈ 1.5~2시간.</b></p>
+          <p class="text-[12.5px] text-[#0d9f6e] mt-1.5">⤷ 월배치 야간 스케줄, 실패분만 재시도(멱등)</p>
+        </div>
+      </div>
+      <div class="soft p-5 flex gap-4 ring-2 ring-[#dbe7ff]">
+        <span class="tile shrink-0" style="background:#2c54d4;font-size:22px">✅</span>
+        <div class="w-full">
+          <p class="font-bold text-[#2c54d4]">자동 QA 게이트 — 가장 중요 (신규)</p>
+          <div class="grid grid-cols-2 gap-x-5 gap-y-1 text-[12.5px] text-slate-600 mt-2">
+            <div>✓ Summary 합계 = RAW 총합</div><div>✓ 키워드 평일+주말 = 월합</div>
+            <div>✓ 일자 1~말일 누락 0</div><div>✓ 기기 PC+모바일+기타 = 월합</div>
+            <div>✓ 소재 VLOOKUP 실패 0</div><div>✓ 코멘트 수치 = 실데이터</div>
+          </div>
+          <p class="text-[12.5px] text-[#0d9f6e] mt-1.5">⤷ 실패 → 재생성 필요 자동분류, 마케터에게 안 올림</p>
+        </div>
+      </div>
+      <div class="soft p-5 flex gap-4">
+        <span class="tile shrink-0" style="background:#f97316;font-size:22px">✍️</span>
+        <div>
+          <p class="font-bold">검수·승인 — 로그인 UI의 진짜 용도</p>
+          <p class="text-[13px] text-slate-600 mt-1 leading-relaxed">"이달 내 담당 광고주 N건 검수 대시보드". 상태·<b>코멘트 인라인 수정</b>·원클릭 승인·미리보기.</p>
+          <p class="text-[12.5px] text-[#0d9f6e] mt-1.5">⤷ 전월 대비 diff 표시 · AI 코멘트는 초안, 승인 전 발송 금지</p>
+        </div>
+      </div>
+      <div class="soft p-5 flex gap-4">
+        <span class="tile shrink-0" style="background:#ec4899;font-size:22px">🚀</span>
+        <div>
+          <p class="font-bold">발송·기록</p>
+          <p class="text-[13px] text-slate-600 mt-1 leading-relaxed">승인 즉시 <b>템플릿 이메일 + 첨부</b> 자동 발송, 발송 로그·수신확인, 감사추적(누가·언제).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── RISK ── -->
+  <section>
+    <p class="sec-label mb-2 px-1">05 · 리스크 & 대응</p>
+    <div class="card p-2">
+      <div class="divide-y divide-slate-100">
+        <div class="flex items-center gap-3 px-4 py-3.5"><span class="w-2 h-2 rounded-full bg-slate-300 shrink-0"></span><p class="text-[13.5px] w-40 font-semibold shrink-0">네이버 rate-limit</p><p class="text-[13px] text-slate-500">광고주 병렬 + 동시성 제한 + 재시도 + 야간 배치</p></div>
+        <div class="flex items-center gap-3 px-4 py-3.5" style="background:#fff5f5;border-radius:14px"><span class="w-2 h-2 rounded-full bg-[#ff5a5f] shrink-0"></span><p class="text-[13.5px] w-40 font-semibold text-[#e0353b] shrink-0">AI 코멘트 오류·책임</p><p class="text-[13px] text-slate-600"><b>승인 없이 발송 금지</b> — 사람 검수 필수</p></div>
+        <div class="flex items-center gap-3 px-4 py-3.5"><span class="w-2 h-2 rounded-full bg-slate-300 shrink-0"></span><p class="text-[13.5px] w-40 font-semibold shrink-0">크리덴셜 유출</p><p class="text-[13px] text-slate-500">키 암호화 · 접근분리 · 로그 마스킹</p></div>
+        <div class="flex items-center gap-3 px-4 py-3.5"><span class="w-2 h-2 rounded-full bg-slate-300 shrink-0"></span><p class="text-[13.5px] w-40 font-semibold shrink-0">데이터 누락 은폐</p><p class="text-[13px] text-slate-500"><b>자동 QA 게이트</b>가 발송 전 차단</p></div>
+        <div class="flex items-center gap-3 px-4 py-3.5"><span class="w-2 h-2 rounded-full bg-slate-300 shrink-0"></span><p class="text-[13.5px] w-40 font-semibold shrink-0">광고주별 특수사항</p><p class="text-[13px] text-slate-500">확장검색·미태깅 기기 → 템플릿 주석으로 명시</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ROADMAP ── -->
+  <section>
+    <p class="sec-label mb-2 px-1">06 · 구축 로드맵</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="soft p-5"><span class="pill" style="background:#e8eeff;color:#2c54d4">PHASE 1</span><p class="font-bold mt-2">MVP · 뼈대</p><p class="text-[12.5px] text-slate-500 mt-1 leading-relaxed">인입→생성→QA→검수→수동발송</p></div>
+      <div class="soft p-5"><span class="pill" style="background:#e8eeff;color:#2c54d4">PHASE 2</span><p class="font-bold mt-2">자동화</p><p class="text-[12.5px] text-slate-500 mt-1 leading-relaxed">월 스케줄 + 승인 후 자동 발송</p></div>
+      <div class="soft p-5"><span class="pill" style="background:#e8eeff;color:#2c54d4">PHASE 3</span><p class="font-bold mt-2">효율화</p><p class="text-[12.5px] text-slate-500 mt-1 leading-relaxed">전월 diff · 프롬프트 개선 · 시트 동기화</p></div>
+      <div class="soft p-5"><span class="pill" style="background:#e8eeff;color:#2c54d4">PHASE 4</span><p class="font-bold mt-2">확장</p><p class="text-[12.5px] text-slate-500 mt-1 leading-relaxed">매체 추가(카카오·구글) · 셀프 포털</p></div>
+    </div>
+  </section>
+
+  <!-- ── KEY MESSAGE (dark) ── -->
+  <section class="rounded-[26px] p-8 text-white" style="background:linear-gradient(135deg,#17171c,#23233a)">
+    <p class="text-[12px] font-extrabold tracking-widest text-slate-400 mb-3">미팅용 한 문장</p>
+    <p class="text-[19px] font-bold leading-relaxed">
+      "단건 보고서B는 검증까지 완성됐고, 다음은 <span style="color:#ffcf8b">스프레드시트로 광고주 등록 → 야간 자동 생성 → 정합성 자동검증 통과분만 마케터가 검수·승인 → 자동 발송</span> 파이프라인.
+      <span class="underline" style="text-decoration-color:#ffcf8b;text-underline-offset:4px">사람은 숫자가 아니라 인사이트만 본다</span>가 핵심."
+    </p>
+  </section>
+
+  <p class="text-center text-[11.5px] text-slate-400 pt-1 pb-4">e-noble · 보고서B 대량 자동화 설계안 · 2026-07</p>
+
+</div>
+</body>
+</html>

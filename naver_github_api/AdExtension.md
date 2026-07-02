@@ -1,0 +1,9 @@
+https://naver.github.io/searchad-apidoc/#/tags/AdExtension
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fad-extensions%7B%3Fids%7D
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fad-extensions%7B%3FnccLabelId%7D
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fad-extensions%7B%3FownerId%7D
+https://naver.github.io/searchad-apidoc/#/operations/GET/~2Fncc~2Fad-extensions~2F%7BadExtensionId%7D
+https://naver.github.io/searchad-apidoc/#/operations/POST/~2Fncc~2Fad-extensions
+https://naver.github.io/searchad-apidoc/#/operations/PUT/~2Fncc~2Fad-extensions~2F%7BadExtensionId%7D%7B%3Ffields%7D
+https://naver.github.io/searchad-apidoc/#/operations/PUT/~2Fncc~2Fad-extensions%7B%3Ffields%7D
+https://naver.github.io/searchad-apidoc/#/operations/DELETE/~2Fncc~2Fad-extensions~2F%7BadExtensionId%7D

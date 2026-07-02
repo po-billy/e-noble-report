@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}팀원 관리{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-xl font-bold text-gray-900">팀원 관리</h1>
+  <p class="text-gray-500 mt-0.5 text-sm">로그인 계정 생성·삭제 (팀장별 개별 로그인)</p>
+</div>
+
+<!-- 알림 메시지 -->
+{% if error %}
+<div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{{ error }}</div>
+{% endif %}
+{% if success %}
+<div class="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">{{ success }}</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- 계정 생성 폼 -->
+  <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+    <h2 class="font-semibold text-gray-900 mb-4">새 계정 생성</h2>
+    <form method="post" action="/admin/users/create" class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1.5">이름</label>
+        <input type="text" name="name" required placeholder="홍길동"
+               class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1.5">이메일</label>
+        <input type="email" name="email" required placeholder="hong@company.com"
+               class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1.5">비밀번호</label>
+        <input type="password" name="password" required placeholder="초기 비밀번호"
+               class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1.5">역할</label>
+        <select name="role"
+                class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="member">팀원 — 배정된 클라이언트만 조회</option>
+          <option value="manager">팀장 — 전체 클라이언트 조회</option>
+          <option value="admin">관리자 — 팀원 관리 + 설정</option>
+        </select>
+      </div>
+      <button type="submit"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-xl transition-colors">
+        계정 생성
+      </button>
+    </form>
+  </div>
+
+  <!-- 계정 목록 -->
+  <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100">
+      <h2 class="font-semibold text-gray-900">전체 계정 ({{ users|length }}개)</h2>
+    </div>
+    {% if users %}
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-xs text-gray-500 border-b border-gray-100">
+          <th class="px-6 py-3 text-left font-medium">이름</th>
+          <th class="px-6 py-3 text-left font-medium">이메일</th>
+          <th class="px-6 py-3 text-left font-medium">역할</th>
+          <th class="px-6 py-3 text-left font-medium">생성일</th>
+          <th class="px-6 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for u in users %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-6 py-3.5 font-medium text-gray-900">{{ u.name }}</td>
+          <td class="px-6 py-3.5 text-gray-500 text-xs">{{ u.email }}</td>
+          <td class="px-6 py-3.5">
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                         {% if u.role == 'admin' %}bg-red-100 text-red-700
+                         {% elif u.role == 'manager' %}bg-blue-100 text-blue-700
+                         {% else %}bg-gray-100 text-gray-600{% endif %}">
+              {% if u.role == 'admin' %}관리자{% elif u.role == 'manager' %}팀장{% else %}팀원{% endif %}
+            </span>
+          </td>
+          <td class="px-6 py-3.5 text-gray-400 text-xs">
+            {{ u.created_at[:10] if u.created_at else '-' }}
+          </td>
+          <td class="px-6 py-3.5 text-right">
+            {% if u.id != sess.user_id %}
+            <button onclick="deleteUser({{ u.id }}, '{{ u.name }}')"
+                    class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors">
+              삭제
+            </button>
+            {% else %}
+            <span class="text-xs text-gray-300">본인</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="px-6 py-10 text-center text-gray-400 text-sm">등록된 계정이 없습니다.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+async function deleteUser(id, name) {
+  if (!confirm(`"${name}" 계정을 삭제하시겠습니까?`)) return;
+  const res = await fetch(`/admin/users/${id}/delete`, { method: 'POST' });
+  const data = await res.json();
+  if (data.ok) location.reload();
+  else alert('삭제 실패: ' + (data.error || '오류'));
+}
+</script>
+{% endblock %}

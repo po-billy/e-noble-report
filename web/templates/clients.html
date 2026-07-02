@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block title %}광고주 · 생성{% endblock %}
+
+{% set total = client_rows|length %}
+{% set keyed = client_rows|selectattr('has_key')|list|length %}
+
+{% block content %}
+<!-- 헤더 -->
+<div class="flex flex-wrap items-end justify-between gap-4 mb-7">
+  <div>
+    <h1 class="text-[26px] font-bold text-slate-900 tracking-tight">광고주 · 보고서 생성</h1>
+    <p class="text-slate-500 mt-1 text-sm">네이버 API 키를 넣고 파워링크 보고서B를 뽑습니다.</p>
+  </div>
+  <div class="flex items-end gap-2 bg-white border border-slate-200 rounded-2xl shadow-card px-3 py-2.5">
+    <div>
+      <label class="block text-[11px] font-semibold text-slate-400 mb-1 px-0.5">연도</label>
+      <select id="year" class="border border-slate-200 rounded-lg pl-2.5 pr-7 py-1.5 text-sm font-medium focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none">
+        {% for y in [now_year, now_year-1] %}<option value="{{ y }}">{{ y }}년</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-[11px] font-semibold text-slate-400 mb-1 px-0.5">월</label>
+      <select id="month" class="border border-slate-200 rounded-lg pl-2.5 pr-7 py-1.5 text-sm font-medium focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none">
+        {% for m in range(1,13) %}<option value="{{ m }}">{{ m }}월</option>{% endfor %}
+      </select>
+    </div>
+    <button onclick="generateAll()" id="batch-btn"
+            class="ml-1 h-[38px] px-4 bg-brand-600 hover:bg-brand-700 active:scale-[.98] text-white text-sm font-semibold rounded-lg flex items-center gap-1.5 shadow-soft transition-all disabled:opacity-50">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      전체 생성
+    </button>
+  </div>
+</div>
+
+<!-- KPI -->
+<div class="grid grid-cols-3 gap-3 mb-7">
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-card p-4">
+    <p class="text-xs font-medium text-slate-400">총 광고주</p>
+    <p class="text-2xl font-bold text-slate-900 mt-1"><span id="kpi-total">{{ total }}</span><span class="text-sm font-medium text-slate-400 ml-1">개</span></p>
+  </div>
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-card p-4">
+    <p class="text-xs font-medium text-slate-400">키 등록 완료</p>
+    <p class="text-2xl font-bold text-emerald-600 mt-1"><span id="kpi-keyed">{{ keyed }}</span><span class="text-sm font-medium text-slate-400 ml-1">개</span></p>
+  </div>
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-card p-4">
+    <p class="text-xs font-medium text-slate-400">키 미등록</p>
+    <p class="text-2xl font-bold text-amber-500 mt-1"><span id="kpi-nokey">{{ total - keyed }}</span><span class="text-sm font-medium text-slate-400 ml-1">개</span></p>
+  </div>
+</div>
+
+<!-- 시트 업로드 -->
+<div class="bg-white border border-slate-200 rounded-2xl shadow-card p-5 mb-4">
+  <div class="flex items-center justify-between mb-1">
+    <h2 class="font-semibold text-slate-900 flex items-center gap-2">
+      <svg class="w-[18px] h-[18px] text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.9A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+      시트로 일괄 등록
+    </h2>
+    <a href="/clients/template" class="text-sm text-brand-600 hover:text-brand-700 font-semibold flex items-center gap-1">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      템플릿 받기
+    </a>
+  </div>
+  <p class="text-[13px] text-slate-500 mb-3.5">엑셀(.xlsx)/CSV로 여러 광고주를 한 번에.
+    <span class="text-slate-400">컬럼: 광고주명·customer_id·api_key·api_secret·매체·담당마케터·수신이메일</span></p>
+  <form id="upload-form" method="post" action="/clients/upload" enctype="multipart/form-data" onsubmit="return onUpload(event)" class="flex flex-wrap items-center gap-2.5">
+    <input type="file" name="file" accept=".xlsx,.xlsm,.csv" required
+           class="text-sm text-slate-600 border border-slate-200 rounded-xl px-3 py-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-50 file:text-brand-700 file:text-sm file:font-semibold hover:file:bg-brand-100 file:cursor-pointer" />
+    <div class="inline-flex rounded-xl border border-slate-200 p-0.5 bg-slate-50">
+      <label class="cursor-pointer">
+        <input type="radio" name="mode" value="append" class="peer sr-only" checked>
+        <span class="block px-3 py-1.5 text-sm font-semibold rounded-lg text-slate-500 peer-checked:bg-white peer-checked:text-brand-700 peer-checked:shadow-sm transition-all">추가</span>
+      </label>
+      <label class="cursor-pointer">
+        <input type="radio" name="mode" value="replace" class="peer sr-only">
+        <span class="block px-3 py-1.5 text-sm font-semibold rounded-lg text-slate-500 peer-checked:bg-white peer-checked:text-red-600 peer-checked:shadow-sm transition-all">전체 교체</span>
+      </label>
+    </div>
+    <button type="submit" class="h-[38px] px-4 bg-slate-800 hover:bg-slate-900 active:scale-[.98] text-white text-sm font-semibold rounded-lg transition-all">업로드</button>
+  </form>
+  <p class="text-[12px] text-slate-400 mt-2"><b class="text-slate-500">추가</b>: 기존 목록 유지하며 신규만 추가(중복은 갱신) · <b class="text-red-500">전체 교체</b>: 내 광고주를 모두 지우고 시트로 새로 채움</p>
+</div>
+
+<!-- 개별 추가 (접힘) -->
+<details class="bg-white border border-slate-200 rounded-2xl shadow-card mb-7 group">
+  <summary class="px-5 py-3.5 font-semibold text-slate-700 text-sm cursor-pointer select-none flex items-center gap-2 list-none">
+    <svg class="w-4 h-4 text-slate-400 transition-transform group-open:rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+    광고주 하나씩 추가
+  </summary>
+  <div class="px-5 pb-5 pt-1 border-t border-slate-100">
+    <form method="post" action="/clients/add" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">광고주명 *</label>
+        <input name="name" required placeholder="예: 린드스트롬" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">customer_id *</label>
+        <input name="naver_customer_id" required placeholder="예: 1543098" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none" />
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">api_key <span class="font-normal text-slate-400">(액세스 라이선스)</span></label>
+        <input name="api_key" placeholder="0100000000..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none" />
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">api_secret <span class="font-normal text-slate-400">(비밀키)</span></label>
+        <input name="api_secret" placeholder="AQAAAAA..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">매체</label>
+        <select name="media" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none">
+          <option>파워링크</option><option>브랜드검색</option><option>쇼핑검색</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1.5">담당 마케터 <span class="font-normal text-slate-400">(선택)</span></label>
+        <input name="manager_name" placeholder="이름" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none" />
+      </div>
+      <div class="md:col-span-2 flex justify-end pt-1">
+        <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 active:scale-[.98] text-white text-sm font-semibold rounded-lg transition-all">저장</button>
+      </div>
+    </form>
+  </div>
+</details>
+
+<!-- 목록 -->
+<div class="bg-white border border-slate-200 rounded-2xl shadow-card overflow-hidden">
+  <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+    <h2 class="font-semibold text-slate-900">등록된 광고주 <span class="text-slate-400 font-medium">(<span id="cnt">{{ total }}</span>)</span></h2>
+    <div class="relative">
+      <input id="search" oninput="filterRows()" placeholder="광고주명·customer_id 검색"
+             class="w-72 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400 focus:outline-none" />
+      <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+    </div>
+  </div>
+
+  {% if client_rows %}
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/50">
+        <th class="px-5 py-3 text-left font-semibold">광고주</th>
+        <th class="px-5 py-3 text-left font-semibold">customer_id</th>
+        <th class="px-5 py-3 text-left font-semibold">매체</th>
+        <th class="px-5 py-3 text-left font-semibold">API 키</th>
+        <th class="px-5 py-3 text-left font-semibold">상태</th>
+        <th class="px-5 py-3 text-right font-semibold">액션</th>
+      </tr>
+    </thead>
+    <tbody id="rows" class="divide-y divide-slate-100">
+      {% for c in client_rows %}
+      <tr class="group hover:bg-slate-50/70 transition-colors" data-cid="{{ c.id }}" data-haskey="{{ 1 if c.has_key else 0 }}"
+          data-search="{{ (c.name ~ ' ' ~ c.naver_customer_id)|lower }}">
+        <td class="px-5 py-3.5">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0">{{ c.name[:1] }}</span>
+            <div class="min-w-0">
+              <p class="font-semibold text-slate-800 truncate">{{ c.name }}</p>
+              {% if c.manager_name %}<p class="text-[11px] text-slate-400">{{ c.manager_name }}</p>{% endif %}
+            </div>
+          </div>
+        </td>
+        <td class="px-5 py-3.5 text-slate-400 font-mono text-xs">{{ c.naver_customer_id or '-' }}</td>
+        <td class="px-5 py-3.5">
+          {% if c.media %}
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full {{ 'bg-brand-50 text-brand-700' if '파워링크' in c.media else 'bg-slate-100 text-slate-600' }}">{{ c.media }}</span>
+          {% else %}<span class="text-slate-300">-</span>{% endif %}
+        </td>
+        <td class="px-5 py-3.5">
+          {% if c.has_key %}
+          <span class="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-mono">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>{{ c.key_masked }}</span>
+          {% else %}
+          <span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">키 없음</span>
+          {% endif %}
+        </td>
+        <td class="px-5 py-3.5"><span class="status text-xs text-slate-400">대기</span></td>
+        <td class="px-5 py-3.5">
+          <div class="flex items-center justify-end gap-1">
+            <button onclick="genOne({{ c.id }}, this)"
+                    class="text-xs px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-semibold transition-all">생성</button>
+            <button onclick="delClient({{ c.id }}, {{ c.name|tojson }}, this)" title="삭제"
+                    class="p-1.5 rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div id="empty-search" class="hidden px-5 py-12 text-center text-sm text-slate-400">검색 결과가 없습니다.</div>
+  {% else %}
+  <div class="px-5 py-16 text-center">
+    <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+      <svg class="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    </div>
+    <p class="text-sm font-medium text-slate-500">아직 등록된 광고주가 없습니다.</p>
+    <p class="text-xs text-slate-400 mt-1">위에서 시트 업로드 또는 개별 추가로 시작하세요.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 로드시 플래시 → 토스트
+{% if added %}toast({{ (added ~ ' 저장 완료')|tojson }}, 'success');{% endif %}
+{% if uploaded %}toast({{ ('업로드 완료 — ' ~ uploaded)|tojson }}, 'success');{% endif %}
+{% if err %}toast({{ err|tojson }}, 'error');{% endif %}
+
+// 기본 월 = 전월
+(function(){ const n=new Date(); let m=n.getMonth(); if(m===0)m=12; document.getElementById('month').value=m; })();
+
+// 업로드: '전체 교체' 모드는 확인
+let _uploadOk=false;
+async function onUpload(e){
+  const mode=(document.querySelector('input[name="mode"]:checked')||{}).value;
+  if(mode==='replace' && !_uploadOk){
+    e.preventDefault();
+    const ok=await uiConfirm({title:'전체 교체', body:'내 광고주를 모두 삭제하고 업로드한 시트 데이터로 새로 채웁니다. 되돌릴 수 없습니다.', ok:'전체 교체'});
+    if(ok){ _uploadOk=true; document.getElementById('upload-form').submit(); }
+    return false;
+  }
+  return true;
+}
+
+// 검색
+function filterRows(){
+  const q=(document.getElementById('search').value||'').trim().toLowerCase();
+  let shown=0;
+  document.querySelectorAll('tr[data-cid]').forEach(r=>{
+    const hit=!q || (r.dataset.search||'').includes(q);
+    r.style.display=hit?'':'none'; if(hit) shown++;
+  });
+  document.getElementById('cnt').textContent=shown;
+  const es=document.getElementById('empty-search');
+  if(es) es.classList.toggle('hidden', shown!==0);
+}
+
+function setStatus(row, html, cls){
+  const s=row.querySelector('.status'); s.innerHTML=html; s.className='status text-xs '+(cls||'text-slate-400');
+}
+
+// 개별 생성
+function genOne(id, btn){ return runOne(id, document.querySelector(`tr[data-cid="${id}"]`), btn); }
+
+async function runOne(clientId, row, btn){
+  if(btn){ btn.disabled=true; btn.classList.add('opacity-50'); }
+  setStatus(row, '<span class="inline-flex items-center gap-1"><span class="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></span>수집 중</span>', 'text-amber-600');
+  const year=document.getElementById('year').value, month=document.getElementById('month').value;
+  const fd=new FormData(); fd.append('client_id',clientId); fd.append('year',year); fd.append('month',month);
+  try{
+    const res=await fetch('/api/generate-v2',{method:'POST',body:fd});
+    const data=await res.json();
+    if(data.error){ setStatus(row,'실패','text-red-600'); toast(data.error,'error'); return false; }
+    return await pollJob(data.job_id, row);
+  }catch(e){ setStatus(row,'오류','text-red-600'); toast(String(e),'error'); return false; }
+  finally{ if(btn){ btn.disabled=false; btn.classList.remove('opacity-50'); } }
+}
+
+function pollJob(jobId, row){
+  const L={starting:'시작',fetching:'수집 중',building:'엑셀 작성',commenting:'코멘트'};
+  return new Promise(res=>{
+    const t=setInterval(async()=>{
+      let job; try{ job=await(await fetch('/api/job/'+jobId)).json(); }catch(e){ return; }
+      if(job.status==='done'){
+        clearInterval(t);
+        const dl=job.filename?`<a class="text-brand-600 font-semibold hover:underline" href="/download/${job.filename}">다운로드</a>`:'';
+        setStatus(row, `<span class="inline-flex items-center gap-1.5"><span class="text-emerald-600">✓ 완료</span> ${dl}</span>`, '');
+        res(true);
+      }else if(job.status==='error'){
+        clearInterval(t);
+        const reason=(job.error||'생성 실패');
+        const safe=reason.replace(/</g,'&lt;').replace(/"/g,'&quot;');
+        setStatus(row, `<span class="text-red-600 font-medium">✕ 실패</span> <span class="text-red-400" title="${safe}">${safe.length>32?safe.slice(0,32)+'…':safe}</span>`, '');
+        toast('생성 실패: '+reason, 'error', 5000);
+        res(false);
+      }
+      else{ setStatus(row, `<span class="inline-flex items-center gap-1"><span class="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></span>${L[job.status]||job.status}</span>`, 'text-amber-600'); }
+    }, 2000);
+  });
+}
+
+// 전체 생성 (키 있는 것만, 순차)
+async function generateAll(){
+  const btn=document.getElementById('batch-btn');
+  const rows=[...document.querySelectorAll('tr[data-haskey="1"]')];
+  if(!rows.length){ toast('키가 등록된 광고주가 없습니다','error'); return; }
+  const ok0=await uiConfirm({title:'전체 생성',body:`키가 등록된 ${rows.length}개 광고주의 보고서를 순차 생성합니다.`,ok:'생성 시작',danger:false});
+  if(!ok0) return;
+  btn.disabled=true; btn.classList.add('opacity-50');
+  let ok=0, fail=0;
+  for(let i=0;i<rows.length;i++){
+    const done=await runOne(rows[i].dataset.cid, rows[i], null);
+    done?ok++:fail++;
+  }
+  btn.disabled=false; btn.classList.remove('opacity-50');
+  toast(`전체 생성 완료 — 성공 ${ok} / 실패 ${fail}`, fail?'error':'success', 5000);
+}
+
+// 삭제
+async function delClient(id, name, btn){
+  const ok=await uiConfirm({title:'광고주 삭제', body:`'${name}' 광고주를 삭제할까요? 생성 이력도 함께 삭제됩니다.`, ok:'삭제'});
+  if(!ok) return;
+  btn.disabled=true;
+  try{
+    const res=await fetch(`/clients/${id}/delete`,{method:'POST'});
+    const data=await res.json();
+    if(data.ok){
+      const row=btn.closest('tr'); const hadKey=row.dataset.haskey==='1'; row.remove();
+      const dec=(el,by=1)=>{ el.textContent=Math.max(0,parseInt(el.textContent||'0')-by); };
+      dec(document.getElementById('cnt')); dec(document.getElementById('kpi-total'));
+      if(hadKey) dec(document.getElementById('kpi-keyed')); else dec(document.getElementById('kpi-nokey'));
+      toast(`'${name}' 삭제됨`,'success');
+    }else{ toast(data.error||'삭제 실패','error'); btn.disabled=false; }
+  }catch(e){ toast('삭제 오류: '+e,'error'); btn.disabled=false; }
+}
+</script>
+{% endblock %}

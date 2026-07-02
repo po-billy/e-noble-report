@@ -1,0 +1,16 @@
+# Render 배포 설정 (Blueprint) — https://render.com
+# 사용: Render 대시보드 → New → Blueprint → 이 저장소 선택 → Apply
+services:
+  - type: web
+    name: ad-report
+    runtime: docker
+    plan: free                     # 무료 플랜 (디스크 비영속·512MB·슬립)
+    region: singapore              # 한국에서 가까운 리전
+    healthCheckPath: /login
+    envVars:
+      - key: SESSION_SECRET        # 로그인 서명키 — Render가 임의 생성
+        generateValue: true
+      - key: NAVER_MOCK            # 실 네이버 API 사용
+        value: "false"
+      - key: ANTHROPIC_API_KEY     # 대시보드에서 직접 입력(비밀)
+        sync: false

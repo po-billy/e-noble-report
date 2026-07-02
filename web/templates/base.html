@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}대시보드{% endblock %} · e-noble 광고 보고서</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          brand: { 50:'#eef3ff',100:'#dce6ff',200:'#c0d2ff',300:'#97b3ff',400:'#6a8cff',
+                   500:'#4066f5',600:'#2c4fe0',700:'#233fc0',800:'#22399b',900:'#22357b' },
+        },
+        fontFamily: { sans: ['Pretendard','Pretendard Variable','system-ui','sans-serif'] },
+        boxShadow: {
+          card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)',
+          soft: '0 4px 16px -4px rgb(15 23 42 / 0.10)',
+          pop: '0 12px 32px -8px rgb(15 23 42 / 0.18)',
+        },
+      } }
+    }
+  </script>
+  <style>
+    html{ -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility }
+    body{ font-family:Pretendard,system-ui,sans-serif }
+    ::-webkit-scrollbar{ width:10px; height:10px }
+    ::-webkit-scrollbar-thumb{ background:#e2e8f0; border-radius:9999px; border:2px solid #fff }
+    ::-webkit-scrollbar-thumb:hover{ background:#cbd5e1 }
+    [x-cloak]{ display:none }
+    @keyframes toastIn{ from{ opacity:0; transform:translateY(8px) scale(.98) } to{ opacity:1; transform:none } }
+    @keyframes fadeIn{ from{ opacity:0 } to{ opacity:1 } }
+    @keyframes popIn{ from{ opacity:0; transform:translateY(10px) scale(.97) } to{ opacity:1; transform:none } }
+    .animate-toast{ animation:toastIn .22s cubic-bezier(.2,.8,.2,1) both }
+    .animate-fade{ animation:fadeIn .15s ease both }
+    .animate-pop{ animation:popIn .2s cubic-bezier(.2,.8,.2,1) both }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+{% if sess %}
+<div class="flex min-h-screen">
+
+  <!-- ───────── 사이드바 ───────── -->
+  <aside class="w-[248px] shrink-0 bg-white border-r border-slate-200/80 flex flex-col fixed inset-y-0 left-0 z-30">
+    <a href="/clients" class="flex items-center gap-2.5 px-5 h-16 border-b border-slate-100">
+      <div class="w-8 h-8 rounded-[10px] bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-extrabold shadow-soft">e</div>
+      <div class="leading-tight">
+        <p class="font-bold text-slate-900 text-[15px] tracking-tight">광고 보고서</p>
+        <p class="text-[11px] text-slate-400 font-medium">e-noble · 보고서B</p>
+      </div>
+    </a>
+
+    <nav class="px-3 pt-4 space-y-0.5">
+      {% set nav = active_page|default('') %}
+      <a href="/clients" class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors
+         {{ 'bg-brand-50 text-brand-700' if nav=='clients' else 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+        <svg class="w-[18px] h-[18px] {{ 'text-brand-600' if nav=='clients' else 'text-slate-400 group-hover:text-slate-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M8 5v14"/></svg>
+        광고주 · 생성
+      </a>
+      <a href="/reports" class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors
+         {{ 'bg-brand-50 text-brand-700' if nav=='reports' else 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+        <svg class="w-[18px] h-[18px] {{ 'text-brand-600' if nav=='reports' else 'text-slate-400 group-hover:text-slate-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h6v6M7 3h7l5 5v11a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/></svg>
+        생성된 보고서
+      </a>
+      {% if sess.role == 'admin' %}
+      <a href="/admin/users" class="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors
+         {{ 'bg-brand-50 text-brand-700' if nav=='users' else 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+        <svg class="w-[18px] h-[18px] {{ 'text-brand-600' if nav=='users' else 'text-slate-400 group-hover:text-slate-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        팀원 관리
+      </a>
+      {% endif %}
+    </nav>
+
+    <div class="flex-1"></div>
+
+    <!-- 상태 표시 -->
+    <div class="px-3 pb-2">
+      <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 text-[11px] font-medium">
+        {% if mock_mode %}
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span class="text-amber-600">MOCK 모드 (테스트 데이터)</span>
+        {% elif api_connected %}
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-slate-500">네이버 API 연결됨</span>
+        {% else %}
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span><span class="text-slate-400">API 대기</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 사용자 -->
+    <div class="border-t border-slate-100 p-3 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700 font-bold flex items-center justify-center shrink-0">{{ sess.name[:1] }}</div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-slate-800 truncate">{{ sess.name }}</p>
+        <p class="text-[11px] text-slate-400 font-medium">
+          {% if sess.role=='admin' %}관리자{% elif sess.role=='manager' %}팀장{% else %}팀원{% endif %}
+        </p>
+      </div>
+      <a href="/logout" title="로그아웃" class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors">
+        <svg class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ───────── 본문 ───────── -->
+  <div class="flex-1 ml-[248px] min-w-0">
+    <main class="px-8 py-8 max-w-6xl mx-auto">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<!-- 토스트 컨테이너 -->
+<div id="toasts" class="fixed bottom-5 right-5 z-[60] flex flex-col gap-2 items-end"></div>
+
+<!-- 확인 모달 -->
+<div id="confirm-modal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-slate-900/40 backdrop-blur-[2px] animate-fade">
+  <div class="bg-white rounded-2xl shadow-pop w-[380px] p-6 animate-pop">
+    <h3 id="confirm-title" class="text-base font-bold text-slate-900">확인</h3>
+    <p id="confirm-body" class="text-sm text-slate-500 mt-1.5 leading-relaxed"></p>
+    <div class="flex justify-end gap-2 mt-6">
+      <button id="confirm-cancel" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">취소</button>
+      <button id="confirm-ok" class="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">삭제</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 토스트 ──
+function toast(msg, type='info', ms=3200){
+  const box=document.getElementById('toasts');
+  const c={success:'border-emerald-200 bg-emerald-50 text-emerald-800',
+           error:'border-red-200 bg-red-50 text-red-700',
+           info:'border-slate-200 bg-white text-slate-700'}[type]||'';
+  const icon={success:'✓',error:'!',info:'i'}[type]||'i';
+  const el=document.createElement('div');
+  el.className=`animate-toast flex items-center gap-2.5 max-w-sm px-4 py-3 rounded-xl border shadow-soft text-sm font-medium ${c}`;
+  el.innerHTML=`<span class="w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold ${type==='success'?'bg-emerald-500 text-white':type==='error'?'bg-red-500 text-white':'bg-slate-300 text-white'}">${icon}</span><span>${msg}</span>`;
+  box.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .3s, transform .3s'; el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(),300); }, ms);
+}
+// ── 프로미스 확인 모달 ──
+function uiConfirm({title='확인', body='', ok='삭제', danger=true}={}){
+  return new Promise(res=>{
+    const m=document.getElementById('confirm-modal');
+    document.getElementById('confirm-title').textContent=title;
+    document.getElementById('confirm-body').textContent=body;
+    const okb=document.getElementById('confirm-ok'), cb=document.getElementById('confirm-cancel');
+    okb.textContent=ok;
+    okb.className=`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors ${danger?'bg-red-600 hover:bg-red-700':'bg-brand-600 hover:bg-brand-700'}`;
+    m.style.display='flex';
+    const close=v=>{ m.style.display='none'; okb.onclick=cb.onclick=null; res(v); };
+    okb.onclick=()=>close(true); cb.onclick=()=>close(false);
+    m.onclick=e=>{ if(e.target===m) close(false); };
+  });
+}
+</script>
+{% block scripts %}{% endblock %}
+{% else %}
+{% block bare %}{% endblock %}
+{% endif %}
+</body>
+</html>
