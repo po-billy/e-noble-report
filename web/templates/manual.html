@@ -13,8 +13,8 @@
     <span class="w-7 h-7 rounded-lg bg-amber-400 text-white flex items-center justify-center shrink-0 font-bold">!</span>
     <div>
       <h2 class="font-bold text-amber-900">지금은 “테스트 서버”입니다</h2>
-      <p class="text-sm text-amber-800 mt-1 leading-relaxed">기능을 확인해보는 임시 환경이라 <b>실제 운영(라이브) 서버와 몇 가지 차이</b>가 있습니다.
-        아래 <a href="#diff" class="underline font-semibold">테스트 vs 라이브 비교표</a>를 꼭 확인하세요. 특히 <b>보고서 생성 중에는 그 페이지를 벗어나지 마세요.</b></p>
+      <p class="text-sm text-amber-800 mt-1 leading-relaxed">기능을 확인해보는 임시 환경이라 <b>실제 운영(라이브) 서버와 몇 가지 차이</b>가 있습니다(속도·데이터 보관 등).
+        아래 <a href="#diff" class="underline font-semibold">테스트 vs 라이브 비교표</a>를 확인하세요. 생성은 <b>요청만 하면 서버가 알아서 처리</b>하니 페이지를 나가셔도 됩니다.</p>
     </div>
   </div>
 </div>
@@ -77,11 +77,11 @@
   <ul class="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
     <li>상단에서 <b>연도·월</b>을 고릅니다 (기본은 지난달).</li>
     <li>광고주 한 곳만 만들려면 그 행의 <b>[생성]</b> 버튼.</li>
-    <li>키가 등록된 광고주 전부를 만들려면 상단 <b>[전체 생성]</b> 버튼.</li>
-    <li>상태 칸이 <span class="text-amber-600 font-medium">수집 중 → 엑셀 작성</span> → <span class="text-emerald-600 font-medium">✓ 완료</span>로 바뀌면 <b>다운로드</b> 링크가 나옵니다.</li>
+    <li>키가 등록된 광고주 전부를 만들려면 상단 <b>[전체 생성]</b> 버튼 → 한 번에 예약됩니다.</li>
+    <li>진행 상황은 <b>[생성된 보고서]</b>에서 <span class="text-brand-600 font-medium">예약 → 생성 중</span> → <span class="text-emerald-600 font-medium">✓ 완료</span>로 실시간 표시되고, 완료되면 <b>다운로드</b>가 나옵니다.</li>
   </ul>
-  <div class="mt-3 rounded-xl bg-red-50 border border-red-100 p-3.5">
-    <p class="text-sm text-red-700"><b>⚠️ 테스트 서버 주의:</b> 생성 버튼을 누른 뒤 <b>“완료/실패”가 뜰 때까지 그 페이지에 그대로 있으세요.</b> 중간에 다른 화면으로 나가면 생성이 멈출 수 있습니다. (라이브 서버에서는 나가도 완료됩니다 — 아래 표 참고)</p>
+  <div class="mt-3 rounded-xl bg-emerald-50 border border-emerald-100 p-3.5">
+    <p class="text-sm text-emerald-800"><b>요청하고 나가도 됩니다 👍</b> 생성은 <b>서버가 백그라운드로 처리</b>하므로, 페이지를 벗어나거나 로그아웃해도 <b>[생성된 보고서]</b>에 되는 대로 하나씩 나타납니다. 실패한 건 그 화면에서 <b>[다시 생성]</b>으로 재시도할 수 있습니다.</p>
   </div>
 </div>
 
@@ -129,8 +129,8 @@
     <tbody class="divide-y divide-slate-100 text-slate-600">
       <tr>
         <td class="px-6 py-3 font-semibold text-slate-800">생성 중 페이지 이탈</td>
-        <td class="px-6 py-3 text-amber-600">나가면 멈출 수 있음 → <b>생성 중엔 대기</b></td>
-        <td class="px-6 py-3 text-emerald-600">나가도 끝까지 완료됨</td>
+        <td class="px-6 py-3 text-emerald-600">나가도 됨 (서버 큐가 처리)</td>
+        <td class="px-6 py-3 text-emerald-600">나가도 됨</td>
       </tr>
       <tr>
         <td class="px-6 py-3 font-semibold text-slate-800">첫 접속 속도</td>

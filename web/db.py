@@ -204,6 +204,57 @@ def create_report(client_id: int, year: int, month: int) -> int:
         return cur.lastrowid
 
 
+# ── 생성 큐 (서버측 백그라운드 처리) ──────────────────────
+def enqueue_report(client_id: int, year: int, month: int) -> int:
+    """생성 대기열에 등록(status='queued'). 워커가 순차 처리한다."""
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO reports (client_id, year, month, status, error) VALUES (?,?,?,'queued','')",
+            (client_id, year, month)
+        )
+        return cur.lastrowid
+
+
+def claim_next_report() -> dict | None:
+    """대기열에서 가장 오래된 1건을 원자적으로 'processing'으로 잡아 반환.
+    단일 프로세스 asyncio 라 이 함수는 원자적으로 동작한다."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM reports WHERE status='queued' ORDER BY id LIMIT 1").fetchone()
+        if not row:
+            return None
+        conn.execute("UPDATE reports SET status='processing' WHERE id=?", (row["id"],))
+        return dict(row)
+
+
+def requeue_stuck():
+    """서버 시작 시: 진행 중이던(=크래시로 끊긴) 것들을 다시 대기열로.
+    구버전 상태('generating'/'fetching' 등)도 정리."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE reports SET status='queued' "
+            "WHERE status IN ('processing','generating','fetching','building','commenting')")
+
+
+def report_status_counts(owner_id: int | None = None) -> dict:
+    """상태별 개수(예약/진행/완료/실패 + active). owner_id 지정 시 그 소유자만."""
+    with get_conn() as conn:
+        q = "SELECT r.status AS s, COUNT(*) AS n FROM reports r JOIN clients c ON c.id=r.client_id"
+        if owner_id is not None:
+            rows = conn.execute(q + " WHERE c.owner_id=? GROUP BY r.status", (owner_id,)).fetchall()
+        else:
+            rows = conn.execute(q + " GROUP BY r.status").fetchall()
+    d = {"queued": 0, "processing": 0, "done": 0, "error": 0}
+    for r in rows:
+        s = r["s"] or ""
+        if s in ("generating", "fetching", "building", "commenting"):
+            d["processing"] += r["n"]
+        elif s in d:
+            d[s] += r["n"]
+    d["active"] = d["queued"] + d["processing"]
+    return d
+
+
 def update_report(report_id: int, **kwargs):
     fields = ", ".join(f"{k}=?" for k in kwargs)
     values = list(kwargs.values()) + [report_id]

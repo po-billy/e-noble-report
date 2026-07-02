@@ -118,7 +118,9 @@ def _media_tag(account: dict) -> str:
         return name[name.index("(") + 1:name.index(")")]
     return name or account.get("customer_id", "")
 
-MOCK_MODE = os.getenv("NAVER_MOCK", "true").lower() == "true" or not _ACCOUNTS
+# NAVER_MOCK 만으로 결정한다. (웹 UI/시트로 등록한 키는 런타임에 register_account 로
+# 주입되므로, accounts.json 이 비어도 실데이터 모드가 가능해야 한다.)
+MOCK_MODE = os.getenv("NAVER_MOCK", "true").lower() == "true"
 
 
 # ── 인증 ─────────────────────────────────────────────────

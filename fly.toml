@@ -8,6 +8,7 @@ primary_region = "nrt"        # 도쿄 (한국 최근접)
 [env]
   NAVER_MOCK = "false"
   DATA_DIR = "/app/data"       # DB·output·uploads 를 볼륨에 저장
+  QUEUE_CONCURRENCY = "1"      # 2GB 테스트 서버: 동시 1건(엑셀 OOM 방지). 라이브(8GB)는 4로.
   # 비밀값(ANTHROPIC_API_KEY, SESSION_SECRET)은 fly.toml 에 넣지 말고
   #   fly secrets set 으로 등록하세요.
 

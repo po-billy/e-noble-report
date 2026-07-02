@@ -31,6 +31,7 @@ from web.db import (
     init_db, get_all_clients, get_clients_by_owner, get_client,
     upsert_client, delete_client, delete_clients_by_owner,
     create_report, update_report, get_report, list_reports, delete_report,
+    enqueue_report, claim_next_report, requeue_stuck, report_status_counts,
 )
 from collectors.naver_searchad import is_connected, MOCK_MODE
 
@@ -284,34 +285,31 @@ async def clients_upload(request: Request, file: UploadFile = File(...),
     return RedirectResponse(f"/clients?uploaded={msg}", status_code=302)
 
 
-# ── 버전B 보고서 생성 ────────────────────────────────────
-@app.post("/api/generate-v2")
-async def generate_v2(
-    request: Request,
-    client_id: int = Form(...),
-    year: int = Form(...),
-    month: int = Form(...),
-):
-    sess = require_session(request)
-    client = get_client(client_id)
+# ── 버전B 보고서 생성 (서버측 큐) ────────────────────────
+# 팀장이 '생성/전체 생성'을 누르면 즉시 큐에 등록만 하고 끝난다.
+# 실제 생성은 서버 백그라운드 워커가 처리하므로, 페이지를 나가거나
+# 로그아웃해도 전부 만들어져 [생성된 보고서]에 나타난다.
+QUEUE_CONCURRENCY = int(os.getenv("QUEUE_CONCURRENCY", "2"))
+_running_tasks: set = set()
+
+
+def _read_summary_comment(filepath) -> str:
+    import openpyxl
+    wb = openpyxl.load_workbook(str(filepath))
+    if "파워링크_Summary" in wb.sheetnames:
+        return wb["파워링크_Summary"].cell(row=9, column=12).value or ""
+    return ""
+
+
+async def _process_report(report: dict):
+    """큐에서 잡은 보고서 1건 생성. 실패는 status='error'+사유 로 남긴다."""
+    rid = report["id"]
+    client = get_client(report["client_id"])
     if not client:
-        return JSONResponse({"error": "클라이언트 없음"}, status_code=404)
-    if not _owns(sess, client.get("owner_id")):
-        return JSONResponse({"error": "권한 없음"}, status_code=403)
-    report_id = create_report(client_id, year, month)
-    job_id = f"r{report_id}"
-    jobs[job_id] = {"status": "starting", "progress": 0, "report_id": report_id}
-    asyncio.create_task(_run_report_v2(job_id, report_id, client, year, month))
-    return JSONResponse({"job_id": job_id, "report_id": report_id})
-
-
-async def _run_report_v2(job_id: str, report_id: int, client: dict, year: int, month: int):
-    """버전B 생성: RAW 수집 → 전 시트 채우기 → AI 코멘트(L9) 까지 내부 수행."""
+        update_report(rid, status="error", error="광고주가 삭제되어 생성할 수 없습니다.")
+        return
+    year, month = report["year"], report["month"]
     try:
-        jobs[job_id].update({"status": "fetching", "progress": 20})
-        update_report(report_id, status="fetching")
-
-        # 팀장이 UI에서 입력한 이 클라이언트의 키를 수집기에 런타임 등록
         if client.get("api_key") and client.get("api_secret"):
             from collectors.naver_searchad import register_account
             register_account(
@@ -319,52 +317,86 @@ async def _run_report_v2(job_id: str, report_id: int, client: dict, year: int, m
                 client["api_key"], client["api_secret"],
                 name=client.get("name", ""), media=client.get("media", ""),
             )
-
         from v2_report import generate_v2_report
-        # 파일명에 report_id 를 넣어 같은 광고주·같은 달 재생성 시 덮어쓰기(충돌) 방지
-        uniq_name = f"{year}년{month:02d}월_{client['name']}_보고서B_{report_id}.xlsx"
+        uniq = f"{year}년{month:02d}월_{client['name']}_보고서B_{rid}.xlsx"
         out_path = await asyncio.to_thread(
             generate_v2_report,
             client.get("naver_customer_id") or str(client["id"]),
             year, month,
-            client_name=client["name"], output_dir=OUTPUT_DIR, out_name=uniq_name,
+            client_name=client["name"], output_dir=OUTPUT_DIR, out_name=uniq,
         )
         filename = out_path.name
-
-        def _read_comment(filepath):
-            import openpyxl
-            wb = openpyxl.load_workbook(str(filepath))
-            if "파워링크_Summary" in wb.sheetnames:
-                return wb["파워링크_Summary"].cell(row=9, column=12).value or ""
-            return ""
-        comment = await asyncio.to_thread(_read_comment, OUTPUT_DIR / filename)
-
-        jobs[job_id].update({"status": "done", "progress": 100,
-                             "filename": filename, "comment": comment or ""})
-        update_report(report_id, status="done", filename=filename, comment=comment or "")
-
+        comment = await asyncio.to_thread(_read_summary_comment, OUTPUT_DIR / filename)
+        update_report(rid, status="done", filename=filename, comment=comment or "")
     except Exception as e:
-        import traceback
-        update_report(report_id, status="error", error=str(e))
-        jobs[job_id].update({"status": "error", "error": str(e),
-                             "traceback": traceback.format_exc()})
+        update_report(rid, status="error", error=str(e)[:300])
 
 
-@app.get("/api/job/{job_id}")
-async def job_status(job_id: str, request: Request):
-    require_session(request)
-    job = jobs.get(job_id)
-    if not job:
+async def _worker_loop():
+    """대기열 폴링 → 여유만큼 동시 처리(QUEUE_CONCURRENCY)."""
+    while True:
         try:
-            r = get_report(int(job_id.lstrip("r")))
-            if r:
-                return JSONResponse({"status": r["status"],
-                                     "progress": 100 if r["status"] == "done" else 50,
-                                     "comment": r["comment"], "filename": r["filename"]})
+            while len(_running_tasks) < QUEUE_CONCURRENCY:
+                rep = claim_next_report()      # queued -> processing (원자적)
+                if not rep:
+                    break
+                t = asyncio.create_task(_process_report(rep))
+                _running_tasks.add(t)
+                t.add_done_callback(_running_tasks.discard)
         except Exception:
             pass
-        return JSONResponse({"error": "not found"}, status_code=404)
-    return JSONResponse(job)
+        await asyncio.sleep(2)
+
+
+@app.on_event("startup")
+async def _start_worker():
+    # 크래시/재시작으로 끊긴 작업을 다시 대기열로 되돌리고 워커 기동
+    try:
+        requeue_stuck()
+    except Exception:
+        pass
+    asyncio.create_task(_worker_loop())
+
+
+@app.post("/api/generate-v2")
+async def generate_v2(
+    request: Request,
+    client_id: int = Form(...),
+    year: int = Form(...),
+    month: int = Form(...),
+):
+    """개별 광고주 1건을 큐에 등록."""
+    sess = require_session(request)
+    client = get_client(client_id)
+    if not client:
+        return JSONResponse({"error": "클라이언트 없음"}, status_code=404)
+    if not _owns(sess, client.get("owner_id")):
+        return JSONResponse({"error": "권한 없음"}, status_code=403)
+    if not (client.get("api_key") and client.get("api_secret")):
+        return JSONResponse({"error": "API 키가 없어 생성할 수 없습니다. 키를 먼저 등록하세요."},
+                            status_code=400)
+    rid = enqueue_report(client_id, year, month)
+    return JSONResponse({"report_id": rid, "queued": True})
+
+
+@app.post("/api/generate-batch")
+async def generate_batch(request: Request, year: int = Form(...), month: int = Form(...)):
+    """내 광고주(키 등록된 것) 전부를 한 번에 큐 등록."""
+    sess = require_session(request)
+    clients = get_all_clients() if _is_admin(sess) else get_clients_by_owner(sess["user_id"])
+    keyed = [c for c in clients if c.get("api_key") and c.get("api_secret")]
+    for c in keyed:
+        enqueue_report(c["id"], year, month)
+    return JSONResponse({"queued": len(keyed), "skipped": len(clients) - len(keyed)})
+
+
+@app.get("/api/queue-status")
+async def queue_status(request: Request):
+    """현재 사용자 기준 상태별 개수(예약/진행/완료/실패)."""
+    sess = get_session(request)
+    if not sess:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    return JSONResponse(report_status_counts(_reports_scope(sess)))
 
 
 # ── 생성된 보고서 ─────────────────────────────────────────
@@ -379,11 +411,11 @@ async def reports_page(request: Request):
     if not sess:
         return RedirectResponse("/login", status_code=302)
     reports = list_reports(_reports_scope(sess))
-    done = sum(1 for r in reports if r["status"] == "done")
-    failed = sum(1 for r in reports if r["status"] == "error")
+    c = report_status_counts(_reports_scope(sess))
     return render(request, "reports.html", active_page="reports",
-                  reports=reports, done_count=done, failed_count=failed,
-                  total_count=len(reports))
+                  reports=reports, done_count=c["done"], failed_count=c["error"],
+                  queued_count=c["queued"], processing_count=c["processing"],
+                  active_count=c["active"], total_count=len(reports))
 
 
 @app.post("/reports/download-zip")
@@ -410,6 +442,33 @@ async def reports_download_zip(request: Request, ids: str = Form("")):
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
     return FileResponse(path=str(zpath), filename=f"보고서_{stamp}.zip",
                         media_type="application/zip")
+
+
+@app.post("/reports/{report_id}/retry")
+async def report_retry(report_id: int, request: Request):
+    """실패(또는 개별) 보고서를 큐에 다시 넣는다. 연·월 그대로 재사용."""
+    sess = get_session(request)
+    if not sess:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    r = get_report(report_id)
+    if not r or not _owns(sess, r.get("owner_id")):
+        return JSONResponse({"error": "권한 없음"}, status_code=403)
+    update_report(report_id, status="queued", error="")
+    return JSONResponse({"ok": True})
+
+
+@app.post("/reports/retry-failed")
+async def reports_retry_failed(request: Request):
+    """내 실패 보고서 전부를 다시 큐에 넣는다."""
+    sess = get_session(request)
+    if not sess:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    n = 0
+    for r in list_reports(_reports_scope(sess)):
+        if r["status"] == "error":
+            update_report(r["id"], status="queued", error="")
+            n += 1
+    return JSONResponse({"queued": n})
 
 
 @app.post("/reports/delete")
@@ -513,6 +572,21 @@ async def delete_user(user_id: int, request: Request):
     from web.db import get_conn
     with get_conn() as conn:
         conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+    return JSONResponse({"ok": True})
+
+
+@app.post("/admin/users/{user_id}/reset-password")
+async def reset_user_password(user_id: int, request: Request, password: str = Form(...)):
+    """관리자가 팀원 비밀번호를 재설정(계정·소속 광고주 유지)."""
+    sess = get_session(request)
+    if not sess or sess["role"] != "admin":
+        return JSONResponse({"error": "권한 없음"}, status_code=403)
+    if len(password.strip()) < 4:
+        return JSONResponse({"error": "비밀번호는 4자 이상"}, status_code=400)
+    from web.db import get_conn
+    with get_conn() as conn:
+        conn.execute("UPDATE users SET password_hash=? WHERE id=?",
+                     (_hash_pw(password.strip()), user_id))
     return JSONResponse({"ok": True})
 
 

@@ -5,9 +5,17 @@
 <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
   <div>
     <h1 class="text-[26px] font-bold text-slate-900 tracking-tight">생성된 보고서</h1>
-    <p class="text-slate-500 mt-1 text-sm">완료 보고서를 개별·<b class="text-slate-600">일괄(zip)</b>로 받고, 실패 로그를 확인합니다.</p>
+    <p class="text-slate-500 mt-1 text-sm">완료 보고서를 개별·<b class="text-slate-600">일괄(zip)</b>로 받고, 실패는 <b class="text-slate-600">다시 생성</b>할 수 있습니다.
+      <span id="queue-badge" class="hidden ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-full align-middle">
+        <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span><span id="queue-badge-text"></span>
+      </span></p>
   </div>
   <div class="flex items-center gap-2">
+    <button onclick="retryFailed()" id="retry-failed-btn" {% if not failed_count %}style="display:none"{% endif %}
+            class="h-[38px] px-3.5 bg-white border border-amber-200 hover:bg-amber-50 text-amber-700 text-sm font-semibold rounded-lg flex items-center gap-1.5 shadow-card transition-colors">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      실패분 다시 생성 (<span id="fail-cnt">{{ failed_count }}</span>)
+    </button>
     <button onclick="delSelected()"
             class="h-[38px] px-3.5 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-600 text-sm font-semibold rounded-lg flex items-center gap-1.5 shadow-card transition-colors">
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -30,6 +38,7 @@
 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
   <div class="inline-flex rounded-xl border border-slate-200 p-0.5 bg-white shadow-card">
     <button data-tab="all" onclick="setTab('all')" class="tab px-3.5 py-1.5 text-sm font-semibold rounded-lg text-slate-500">전체 <span class="text-slate-400">{{ total_count }}</span></button>
+    <button data-tab="active" onclick="setTab('active')" class="tab px-3.5 py-1.5 text-sm font-semibold rounded-lg text-slate-500">진행 중 <span class="text-brand-500" id="active-cnt">{{ active_count }}</span></button>
     <button data-tab="done" onclick="setTab('done')" class="tab px-3.5 py-1.5 text-sm font-semibold rounded-lg text-slate-500">완료 <span class="text-emerald-500">{{ done_count }}</span></button>
     <button data-tab="error" onclick="setTab('error')" class="tab px-3.5 py-1.5 text-sm font-semibold rounded-lg text-slate-500">실패 <span class="text-red-500">{{ failed_count }}</span></button>
   </div>
@@ -88,8 +97,10 @@
           {% elif r.status=='error' %}
           <span class="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">✕ 실패</span>
           {% if r.error %}<div class="text-[11px] text-red-400 mt-1 max-w-sm truncate" title="{{ r.error }}">{{ r.error }}</div>{% endif %}
+          {% elif r.status=='queued' %}
+          <span class="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">⏳ 예약 대기</span>
           {% else %}
-          <span class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">생성 중</span>
+          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"><span class="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></span>생성 중</span>
           {% endif %}
         </td>
         <td class="px-5 py-3.5 text-slate-400 text-xs">{{ r.created_at[:16] if r.created_at else '-' }}</td>
@@ -97,6 +108,9 @@
           <div class="flex items-center justify-end gap-1.5">
             {% if r.status=='done' and r.filename %}
             <a href="/download/{{ r.filename }}" class="text-brand-600 hover:text-brand-700 font-semibold text-sm">다운로드</a>
+            {% elif r.status=='error' %}
+            <button onclick="retryOne({{ r.id }}, this)"
+                    class="text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-colors">다시 생성</button>
             {% endif %}
             <button onclick="delReport({{ r.id }}, this)" title="삭제"
                     class="p-1.5 rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100">
@@ -138,8 +152,11 @@ function filterReports(){
   const ym=document.getElementById('f-ym').value;
   const name=(document.getElementById('f-name').value||'').trim().toLowerCase();
   let shown=0;
+  const active=['queued','processing','generating','fetching'];
   document.querySelectorAll('.rrow').forEach(r=>{
-    const ok = (curTab==='all' || r.dataset.status===curTab)
+    const st=r.dataset.status;
+    const tabOk = curTab==='all' || st===curTab || (curTab==='active' && active.includes(st));
+    const ok = tabOk
       && (!date || r.dataset.date===date)
       && (!ym || r.dataset.ym===ym)
       && (!name || (r.dataset.name||'').includes(name));
@@ -188,10 +205,49 @@ function recount(){
   const done=rows.filter(r=>r.dataset.status==='done').length;
   const err=rows.filter(r=>r.dataset.status==='error').length;
   document.getElementById('done-cnt').textContent=done;
+  document.getElementById('fail-cnt').textContent=err;
   document.querySelector('.tab[data-tab="all"] span').textContent=rows.length;
   document.querySelector('.tab[data-tab="done"] span').textContent=done;
   document.querySelector('.tab[data-tab="error"] span').textContent=err;
+  const rf=document.getElementById('retry-failed-btn'); if(rf) rf.style.display = err? '' : 'none';
 }
+
+// 다시 생성 (개별)
+async function retryOne(id, btn){
+  btn.disabled=true; btn.textContent='예약됨';
+  try{
+    const d=await (await fetch(`/reports/${id}/retry`,{method:'POST'})).json();
+    if(d.ok){ toast('다시 생성 예약됨','success'); setTimeout(()=>location.reload(), 700); }
+    else { toast(d.error||'실패','error'); btn.disabled=false; btn.textContent='다시 생성'; }
+  }catch(e){ toast('오류: '+e,'error'); btn.disabled=false; btn.textContent='다시 생성'; }
+}
+// 실패분 전체 다시 생성
+async function retryFailed(){
+  const ok=await uiConfirm({title:'실패분 다시 생성', body:'실패한 보고서를 모두 다시 생성 대기열에 넣습니다.', ok:'다시 생성', danger:false});
+  if(!ok) return;
+  try{
+    const d=await (await fetch('/reports/retry-failed',{method:'POST'})).json();
+    toast(`${d.queued}건 다시 생성 예약됨`,'success'); setTimeout(()=>location.reload(), 700);
+  }catch(e){ toast('오류: '+e,'error'); }
+}
+
+// 진행 상황 배지 + 자동 새로고침 (예약/진행이 끝나면 목록 갱신)
+let _lastActive=null;
+async function pollQueue(){
+  try{
+    const c=await (await fetch('/api/queue-status')).json();
+    const badge=document.getElementById('queue-badge');
+    const ac=document.getElementById('active-cnt'); if(ac) ac.textContent=c.active;
+    if(c.active>0){
+      badge.classList.remove('hidden');
+      document.getElementById('queue-badge-text').textContent=`예약 ${c.queued} · 생성 중 ${c.processing}`;
+    } else badge.classList.add('hidden');
+    if(_lastActive!==null && c.active!==_lastActive){ location.reload(); return; }
+    _lastActive=c.active;
+  }catch(e){}
+}
+setInterval(pollQueue, 4000); pollQueue();
+
 setTab('all');
 </script>
 {% endblock %}
