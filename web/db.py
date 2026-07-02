@@ -28,10 +28,10 @@ CLIENTS_SQL = """CREATE TABLE IF NOT EXISTS clients (
 
 
 def init_db():
+    # 1) 기본 테이블 — 별도 트랜잭션으로 먼저 커밋 (마이그레이션이 실패해도 항상 유지)
     with get_conn() as conn:
         conn.execute(CLIENTS_SQL)
-        conn.executescript("""
-        CREATE TABLE IF NOT EXISTS reports (
+        conn.execute("""CREATE TABLE IF NOT EXISTS reports (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             client_id       INTEGER REFERENCES clients(id),
             year            INTEGER NOT NULL,
@@ -41,48 +41,52 @@ def init_db():
             status          TEXT DEFAULT 'pending',
             error           TEXT DEFAULT '',
             created_at      TEXT DEFAULT (datetime('now','localtime'))
-        );
-        CREATE TABLE IF NOT EXISTS users (
+        )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS users (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             email           TEXT UNIQUE NOT NULL,
             password_hash   TEXT NOT NULL DEFAULT '',
             name            TEXT NOT NULL,
             role            TEXT DEFAULT 'member',
             created_at      TEXT DEFAULT (datetime('now','localtime'))
-        );
-        CREATE TABLE IF NOT EXISTS client_users (
+        )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS client_users (
             client_id       INTEGER REFERENCES clients(id),
             user_id         INTEGER REFERENCES users(id),
             PRIMARY KEY (client_id, user_id)
-        );
-        """)
+        )""")
 
-        # ── 마이그레이션 (기존 DB 호환) ──
-        cols = {r[1] for r in conn.execute("PRAGMA table_info(clients)")}
-        for col in ("api_key", "api_secret", "media"):
-            if col not in cols:
-                conn.execute(f"ALTER TABLE clients ADD COLUMN {col} TEXT DEFAULT ''")
-        if "owner_id" not in cols:
-            conn.execute("ALTER TABLE clients ADD COLUMN owner_id INTEGER")
-        rcols = {r[1] for r in conn.execute("PRAGMA table_info(reports)")}
-        if "error" not in rcols:
-            conn.execute("ALTER TABLE reports ADD COLUMN error TEXT DEFAULT ''")
+    # 2) 마이그레이션 — 실패해도 기본 테이블/앱은 살아있게 격리
+    try:
+        with get_conn() as conn:
+            conn.execute("DROP TABLE IF EXISTS _clients_old")   # 이전 실패 잔재 정리
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(clients)")}
+            for col in ("api_key", "api_secret", "media"):
+                if col not in cols:
+                    conn.execute(f"ALTER TABLE clients ADD COLUMN {col} TEXT DEFAULT ''")
+            if "owner_id" not in cols:
+                conn.execute("ALTER TABLE clients ADD COLUMN owner_id INTEGER")
+            rcols = {r[1] for r in conn.execute("PRAGMA table_info(reports)")}
+            if "error" not in rcols:
+                conn.execute("ALTER TABLE reports ADD COLUMN error TEXT DEFAULT ''")
 
-        # 레거시 UNIQUE(naver_customer_id) 제거 → 팀마다 같은 광고주 등록 허용
-        row = conn.execute(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name='clients'").fetchone()
-        if row and "UNIQUE" in (row[0] or "").upper():
-            conn.execute("ALTER TABLE clients RENAME TO _clients_old")
-            conn.execute(CLIENTS_SQL)
-            newc = [r[1] for r in conn.execute("PRAGMA table_info(clients)")]
-            oldc = [r[1] for r in conn.execute("PRAGMA table_info(_clients_old)")]
-            common = ",".join(c for c in newc if c in oldc)
-            conn.execute(f"INSERT INTO clients ({common}) SELECT {common} FROM _clients_old")
-            conn.execute("DROP TABLE _clients_old")
+            # 레거시 UNIQUE(naver_customer_id) 제거 → 팀마다 같은 광고주 등록 허용
+            row = conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='clients'").fetchone()
+            if row and "UNIQUE" in (row[0] or "").upper():
+                conn.execute("DROP TABLE IF EXISTS _clients_old")
+                conn.execute("ALTER TABLE clients RENAME TO _clients_old")
+                conn.execute(CLIENTS_SQL)
+                newc = [r[1] for r in conn.execute("PRAGMA table_info(clients)")]
+                oldc = [r[1] for r in conn.execute("PRAGMA table_info(_clients_old)")]
+                common = ",".join(c for c in newc if c in oldc)
+                conn.execute(f"INSERT INTO clients ({common}) SELECT {common} FROM _clients_old")
+                conn.execute("DROP TABLE _clients_old")
 
-        # 소유자 없는 레거시 광고주 → 최초(관리자) 계정에 귀속
-        conn.execute("""UPDATE clients SET owner_id=(SELECT MIN(id) FROM users)
-                        WHERE owner_id IS NULL AND EXISTS(SELECT 1 FROM users)""")
+            conn.execute("""UPDATE clients SET owner_id=(SELECT MIN(id) FROM users)
+                            WHERE owner_id IS NULL AND EXISTS(SELECT 1 FROM users)""")
+    except Exception as e:
+        print(f"[init_db] migration skipped: {e}")
 
 
 @contextmanager
