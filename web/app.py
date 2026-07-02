@@ -77,6 +77,8 @@ def render(request: Request, name: str, **ctx):
 
 # 진행 중 작업 (메모리)
 jobs: dict[str, dict] = {}
+# 최근 업로드 결과(사용자별) — 업로드 직후 /clients 에서 결과 패널로 1회 표시
+_last_upload: dict[int, dict] = {}
 
 
 # ── 세션 / 인증 ─────────────────────────────────────────
@@ -246,7 +248,8 @@ async def clients_page(request: Request):
                   client_rows=rows,
                   added=request.query_params.get("added"),
                   uploaded=request.query_params.get("uploaded"),
-                  err=request.query_params.get("err"))
+                  err=request.query_params.get("err"),
+                  upload_result=_last_upload.pop(sess["user_id"], None))
 
 
 @app.post("/clients/add")
@@ -350,18 +353,17 @@ async def clients_upload(request: Request, file: UploadFile = File(...),
     dest = UPLOAD_DIR / f"roster_{uuid.uuid4().hex[:8]}_{file.filename}"
     dest.write_bytes(await file.read())
     try:
-        records = roster.read_file(dest)
+        valid, skipped_rows = roster.read_file_verbose(dest)
     except Exception as e:
         return RedirectResponse(f"/clients?err={e}", status_code=302)
 
-    valid = [r for r in records if (r.get("customer_id") or "").strip()]
     if mode == "replace" and not valid:
         return RedirectResponse("/clients?err=시트에 유효한 광고주(customer_id)가 없어 전체 교체를 중단했습니다.",
                                 status_code=302)
 
     deleted = delete_clients_by_owner(sess["user_id"]) if mode == "replace" else 0
 
-    new_cnt, upd_cnt, skipped = 0, 0, len(records) - len(valid)
+    new_cnt, upd_cnt = 0, 0
     to_validate = []
     for r in valid:
         cid = r["customer_id"].strip()
@@ -384,13 +386,12 @@ async def clients_upload(request: Request, file: UploadFile = File(...),
     if to_validate:
         asyncio.create_task(_bg_validate_keys(to_validate))
 
-    if mode == "replace":
-        msg = f"기존 {deleted}건 삭제 · {new_cnt}건 추가"
-    else:
-        msg = f"{new_cnt}건 추가" + (f" · {upd_cnt}건 갱신" if upd_cnt else "")
-    if skipped:
-        msg += f" · {skipped}건 건너뜀"
-    return RedirectResponse(f"/clients?uploaded={msg}", status_code=302)
+    # 결과를 세션 사용자별로 저장 → /clients 에서 결과 패널로 표시
+    _last_upload[sess["user_id"]] = {
+        "mode": mode, "deleted": deleted, "added": new_cnt, "updated": upd_cnt,
+        "skipped": skipped_rows, "validating": len(to_validate),
+    }
+    return RedirectResponse("/clients", status_code=302)
 
 
 # ── 버전B 보고서 생성 (서버측 큐) ────────────────────────
@@ -412,6 +413,7 @@ def _read_summary_comment(filepath) -> str:
 async def _process_report(report: dict):
     """큐에서 잡은 보고서 1건 생성. 실패는 status='error'+사유 로 남긴다."""
     rid = report["id"]
+    old_filename = report.get("filename")   # 재생성이면 이전 파일 → 새 파일과 다르면 정리
     client = get_client(report["client_id"])
     if not client:
         update_report(rid, status="error", error="광고주가 삭제되어 생성할 수 없습니다.")
@@ -436,6 +438,12 @@ async def _process_report(report: dict):
         filename = out_path.name
         comment = await asyncio.to_thread(_read_summary_comment, OUTPUT_DIR / filename)
         update_report(rid, status="done", filename=filename, comment=comment or "")
+        # 이전 파일명이 다르면(광고주명 변경 등) 옛 파일 정리 → 디스크 누적 방지
+        if old_filename and old_filename != filename:
+            try:
+                (OUTPUT_DIR / old_filename).unlink(missing_ok=True)
+            except OSError:
+                pass
     except Exception as e:
         update_report(rid, status="error", error=str(e)[:300])
 

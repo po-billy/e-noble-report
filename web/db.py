@@ -303,8 +303,16 @@ def create_report(client_id: int, year: int, month: int) -> int:
 
 # ── 생성 큐 (서버측 백그라운드 처리) ──────────────────────
 def enqueue_report(client_id: int, year: int, month: int) -> int:
-    """생성 대기열에 등록(status='queued'). 워커가 순차 처리한다."""
+    """생성 대기열에 등록. 같은 광고주·같은 달 보고서가 이미 있으면 그 행을 재사용(덮어쓰기),
+    없으면 신규 생성. → (광고주, 보고월)당 항상 1건만 유지(중복 누적 방지). 할당은 유지."""
     with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM reports WHERE client_id=? AND year=? AND month=? ORDER BY id DESC LIMIT 1",
+            (client_id, year, month)
+        ).fetchone()
+        if row:
+            conn.execute("UPDATE reports SET status='queued', error='' WHERE id=?", (row["id"],))
+            return row["id"]
         cur = conn.execute(
             "INSERT INTO reports (client_id, year, month, status, error) VALUES (?,?,?,'queued','')",
             (client_id, year, month)

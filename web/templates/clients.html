@@ -32,6 +32,35 @@
   </div>
 </div>
 
+{% if upload_result %}
+<!-- 업로드 결과 패널 -->
+<div class="mb-6 rounded-2xl border border-slate-200 bg-white shadow-card p-5">
+  <div class="flex items-center gap-2 mb-2.5">
+    <span class="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">✓</span>
+    <h3 class="font-bold text-slate-900">업로드 결과</h3>
+    <span class="text-xs text-slate-400">{% if upload_result.mode=='replace' %}전체 교체{% else %}추가{% endif %} 모드</span>
+  </div>
+  <div class="flex flex-wrap gap-2 text-sm">
+    {% if upload_result.mode=='replace' %}<span class="px-2.5 py-1 rounded-lg bg-red-50 text-red-600 font-medium">기존 {{ upload_result.deleted }}건 삭제</span>{% endif %}
+    <span class="px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 font-medium">추가 {{ upload_result.added }}</span>
+    <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">갱신 {{ upload_result.updated }}</span>
+    {% if upload_result.skipped %}<span class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-medium">건너뜀 {{ upload_result.skipped|length }}</span>{% endif %}
+    {% if upload_result.validating %}<span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500">🔑 키 검증 중 {{ upload_result.validating }}건 — 새로고침 시 '정보 없음' 반영</span>{% endif %}
+  </div>
+  {% if upload_result.skipped %}
+  <details class="mt-3">
+    <summary class="text-sm text-amber-700 font-semibold cursor-pointer select-none">건너뛴 {{ upload_result.skipped|length }}건 상세 보기</summary>
+    <div class="overflow-x-auto mt-2">
+      <table class="w-full text-xs border-t border-slate-100">
+        <thead><tr class="text-slate-400"><th class="text-left py-1.5 px-2 font-medium">행</th><th class="text-left py-1.5 px-2 font-medium">광고주</th><th class="text-left py-1.5 px-2 font-medium">사유</th></tr></thead>
+        <tbody>{% for s in upload_result.skipped %}<tr class="border-t border-slate-50"><td class="py-1.5 px-2 text-slate-500">{{ s.row }}행</td><td class="py-1.5 px-2 text-slate-700">{{ s.name }}</td><td class="py-1.5 px-2 text-amber-600">{{ s.reason }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
+
 {% set invalid = client_rows|selectattr('key_status','equalto','invalid')|list|length %}
 <!-- KPI -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-7">

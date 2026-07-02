@@ -117,6 +117,48 @@ def read_file(path) -> list[dict]:
     raise ValueError(f"지원하지 않는 형식: {ext} (xlsx 또는 csv 만 가능)")
 
 
+def _raw_rows(path: Path) -> list:
+    ext = path.suffix.lower()
+    if ext in (".xlsx", ".xlsm"):
+        wb = load_workbook(path, read_only=True, data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        wb.close()
+        return rows
+    if ext == ".csv":
+        import csv
+        with open(path, encoding="utf-8-sig", newline="") as f:
+            return list(csv.reader(f))
+    raise ValueError(f"지원하지 않는 형식: {ext} (xlsx 또는 csv 만 가능)")
+
+
+def read_file_verbose(path) -> tuple[list[dict], list[dict]]:
+    """(records, skipped) 반환. skipped=[{row, name, reason}] — 침묵의 부분실패 가시화용."""
+    rows = _raw_rows(Path(path))
+    if not rows:
+        return [], []
+    cols = [_norm_header(h) for h in rows[0]]
+    records, skipped = [], []
+    for i, row in enumerate(rows[1:], start=2):   # 2 = 헤더 다음 첫 데이터 행(엑셀 행번호)
+        if not any(str(v).strip() for v in (row or []) if v is not None):
+            continue   # 완전 빈 행은 조용히 무시
+        rec = {}
+        for key, val in zip(cols, row):
+            if key:
+                rec[key] = ("" if val is None else str(val).strip())
+        name = rec.get("name", "")
+        cid = norm_customer_id(rec.get("customer_id", ""))
+        if not cid:
+            skipped.append({"row": i, "name": name or "(이름 없음)", "reason": "customer_id 없음"})
+            continue
+        rec["customer_id"] = cid
+        rec["api_key"] = (rec.get("api_key") or "").strip()
+        rec["api_secret"] = (rec.get("api_secret") or "").strip()
+        rec["active"] = _truthy(rec.get("active"))
+        records.append(rec)
+    return records, skipped
+
+
 def _read_gsheet(sheet_id: str, worksheet: str | None) -> list[dict]:
     """gspread + 서비스계정으로 Google Sheet 읽기.
     필요: pip install gspread google-auth
