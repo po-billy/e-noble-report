@@ -33,6 +33,8 @@ from web.db import (
     create_report, update_report, get_report, list_reports, delete_report,
     enqueue_report, claim_next_report, requeue_stuck, report_status_counts,
     set_key_status, last_report_dates, get_user_names,
+    get_team_ids, get_members_of, get_users_by_role, get_clients_scoped,
+    set_parent, assign_report,
 )
 from collectors.naver_searchad import is_connected, MOCK_MODE
 
@@ -112,9 +114,37 @@ def _is_admin(sess) -> bool:
     return bool(sess and sess.get("role") == "admin")
 
 
+def _visibility(sess):
+    """(owner_ids, member_self) 반환.
+    - admin  → (None, None)         전체
+    - manager→ (팀 id들, None)       자기 + 소속 팀원 소유
+    - member → ([자기], 자기)        자기 소유 + 나에게 할당된 보고서
+    """
+    role = sess.get("role")
+    uid = sess.get("user_id")
+    if role == "admin":
+        return None, None
+    if role == "manager":
+        return get_team_ids(uid), None
+    return [uid], uid
+
+
 def _owns(sess, owner_id) -> bool:
-    """admin 은 전체, 그 외는 자기 소유만 접근 가능."""
-    return _is_admin(sess) or (sess and owner_id is not None and sess.get("user_id") == owner_id)
+    """광고주 편집/생성/삭제 권한: admin=전체, 그 외=가시 범위(팀/본인) 내."""
+    if _is_admin(sess):
+        return True
+    owner_ids, _ = _visibility(sess)
+    return owner_id is not None and owner_id in (owner_ids or [])
+
+
+def _can_see_report(sess, r: dict) -> bool:
+    """보고서 열람 권한(다운로드/삭제/재시도용)."""
+    if _is_admin(sess):
+        return True
+    owner_ids, member_self = _visibility(sess)
+    if r.get("owner_id") in (owner_ids or []):
+        return True
+    return member_self is not None and r.get("assigned_to") == member_self
 
 
 # ── 로그인 ──────────────────────────────────────────────
@@ -180,10 +210,10 @@ async def clients_page(request: Request):
     sess = get_session(request)
     if not sess:
         return RedirectResponse("/login", status_code=302)
-    is_admin = _is_admin(sess)
-    clients = get_all_clients() if is_admin else get_clients_by_owner(sess["user_id"])
-    last_dates = last_report_dates(_reports_scope(sess))
-    user_names = get_user_names() if is_admin else {}
+    ov, _ms = _visibility(sess)
+    clients = get_all_clients() if ov is None else get_clients_scoped(ov)
+    last_dates = last_report_dates(ov)
+    user_names = get_user_names() if sess["role"] in ("admin", "manager") else {}
     rows = []
     for c in clients:
         rows.append({
@@ -428,30 +458,37 @@ async def queue_status(request: Request):
     sess = get_session(request)
     if not sess:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
-    return JSONResponse(report_status_counts(_reports_scope(sess)))
+    ov, ms = _visibility(sess)
+    return JSONResponse(report_status_counts(ov, ms))
 
 
 # ── 생성된 보고서 ─────────────────────────────────────────
-def _reports_scope(sess):
-    """admin → 전체, 그 외 → 자기 것만."""
-    return None if _is_admin(sess) else sess["user_id"]
-
-
 @app.get("/reports", response_class=HTMLResponse)
 async def reports_page(request: Request):
     sess = get_session(request)
     if not sess:
         return RedirectResponse("/login", status_code=302)
-    reports = list_reports(_reports_scope(sess))
-    if _is_admin(sess):
-        un = get_user_names()
-        for r in reports:
+    ov, ms = _visibility(sess)
+    reports = list_reports(ov, ms)
+    un = get_user_names()
+    show_owner = sess["role"] in ("admin", "manager")
+    for r in reports:
+        if show_owner:
             r["owner_name"] = un.get(r.get("owner_id"), "-")
-    c = report_status_counts(_reports_scope(sess))
+        r["assignee_name"] = un.get(r.get("assigned_to")) if r.get("assigned_to") else ""
+    c = report_status_counts(ov, ms)
+    # 할당 대상(팀원) 목록 — 팀장은 소속 팀원, 관리자는 전체 팀원
+    if _is_admin(sess):
+        team_members = get_users_by_role("member")
+    elif sess["role"] == "manager":
+        team_members = get_members_of(sess["user_id"])
+    else:
+        team_members = []
     return render(request, "reports.html", active_page="reports",
                   reports=reports, done_count=c["done"], failed_count=c["error"],
                   queued_count=c["queued"], processing_count=c["processing"],
-                  active_count=c["active"], total_count=len(reports))
+                  active_count=c["active"], total_count=len(reports),
+                  can_assign=bool(team_members), team_members=team_members)
 
 
 @app.post("/reports/download-zip")
@@ -462,7 +499,8 @@ async def reports_download_zip(request: Request, ids: str = Form("")):
         return RedirectResponse("/login", status_code=302)
     import zipfile
     want = {i for i in ids.split(",") if i.strip()}
-    reports = list_reports(_reports_scope(sess))
+    ov, ms = _visibility(sess)
+    reports = list_reports(ov, ms)
     picked = [r for r in reports
               if r["status"] == "done" and r["filename"]
               and (not want or str(r["id"]) in want)]
@@ -500,8 +538,9 @@ async def reports_retry_failed(request: Request):
     if not sess:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     n = 0
-    for r in list_reports(_reports_scope(sess)):
-        if r["status"] == "error":
+    ov, ms = _visibility(sess)
+    for r in list_reports(ov, ms):
+        if r["status"] == "error" and _owns(sess, r.get("owner_id")):
             update_report(r["id"], status="queued", error="")
             n += 1
     return JSONResponse({"queued": n})
@@ -534,14 +573,44 @@ async def reports_delete(request: Request, ids: str = Form("")):
     return JSONResponse({"ok": True, "deleted": deleted})
 
 
+@app.post("/reports/assign")
+async def reports_assign(request: Request, ids: str = Form(""), member_id: int = Form(...)):
+    """선택한 보고서를 팀원에게 할당(열람 권한 부여). 팀장/관리자만."""
+    sess = get_session(request)
+    if not sess:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    if sess["role"] not in ("admin", "manager"):
+        return JSONResponse({"error": "권한 없음"}, status_code=403)
+    if _is_admin(sess):
+        valid = {m["id"] for m in get_users_by_role("member")}
+    else:
+        valid = {m["id"] for m in get_members_of(sess["user_id"])}
+    if member_id not in valid:
+        return JSONResponse({"error": "내 팀원이 아닙니다."}, status_code=403)
+    n = 0
+    for rid in ids.split(","):
+        rid = rid.strip()
+        if not rid:
+            continue
+        try:
+            r = get_report(int(rid))
+        except ValueError:
+            continue
+        if r and _owns(sess, r.get("owner_id")):   # 내가 관리하는 보고서만 할당
+            assign_report(int(rid), member_id)
+            n += 1
+    return JSONResponse({"assigned": n})
+
+
 # ── 다운로드 ─────────────────────────────────────────────
 @app.get("/download/{filename}")
 async def download(filename: str, request: Request):
     sess = get_session(request)
     if not sess:
         return RedirectResponse("/login", status_code=302)
-    # 본인(또는 admin) 소유 보고서 파일만 허용
-    allowed = {r["filename"] for r in list_reports(_reports_scope(sess)) if r.get("filename")}
+    # 볼 수 있는 보고서(본인/팀/할당) 파일만 허용
+    ov, ms = _visibility(sess)
+    allowed = {r["filename"] for r in list_reports(ov, ms) if r.get("filename")}
     if filename not in allowed:
         raise HTTPException(status_code=404)
     path = OUTPUT_DIR / filename
@@ -570,7 +639,8 @@ async def admin_users(request: Request):
         users = [dict(r) for r in conn.execute(
             "SELECT * FROM users ORDER BY created_at DESC").fetchall()]
     return render(request, "admin_users.html", active_page="users",
-                  users=users, error=None, success=None)
+                  users=users, managers=get_users_by_role("manager"),
+                  error=None, success=None)
 
 
 @app.post("/admin/users/create")
@@ -589,13 +659,15 @@ async def create_user(
         if conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone():
             users = [dict(r) for r in conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()]
             return render(request, "admin_users.html", active_page="users",
-                          users=users, error=f"이미 존재하는 이메일입니다: {email}", success=None)
+                          users=users, managers=get_users_by_role("manager"),
+                          error=f"이미 존재하는 이메일입니다: {email}", success=None)
         conn.execute("INSERT INTO users (email, password_hash, name, role) VALUES (?,?,?,?)",
                      (email, _hash_pw(password), name.strip(), role))
     with get_conn() as conn:
         users = [dict(r) for r in conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()]
     return render(request, "admin_users.html", active_page="users",
-                  users=users, error=None, success=f"{name} 계정이 생성되었습니다.")
+                  users=users, managers=get_users_by_role("manager"),
+                  error=None, success=f"{name} 계정이 생성되었습니다.")
 
 
 @app.post("/admin/users/{user_id}/delete")
@@ -623,6 +695,17 @@ async def reset_user_password(user_id: int, request: Request, password: str = Fo
     with get_conn() as conn:
         conn.execute("UPDATE users SET password_hash=? WHERE id=?",
                      (_hash_pw(password.strip()), user_id))
+    return JSONResponse({"ok": True})
+
+
+@app.post("/admin/users/{user_id}/set-parent")
+async def set_user_parent(user_id: int, request: Request, parent_id: str = Form("")):
+    """관리자: 팀원의 소속 팀장 지정(빈 값이면 해제)."""
+    sess = get_session(request)
+    if not sess or sess["role"] != "admin":
+        return JSONResponse({"error": "권한 없음"}, status_code=403)
+    pid = int(parent_id) if parent_id.strip().isdigit() else None
+    set_parent(user_id, pid)
     return JSONResponse({"ok": True})
 
 

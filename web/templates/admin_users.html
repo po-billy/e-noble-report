@@ -64,6 +64,7 @@
           <th class="px-6 py-3 text-left font-medium">이름</th>
           <th class="px-6 py-3 text-left font-medium">이메일</th>
           <th class="px-6 py-3 text-left font-medium">역할</th>
+          <th class="px-6 py-3 text-left font-medium">소속 팀장</th>
           <th class="px-6 py-3 text-left font-medium">생성일</th>
           <th class="px-6 py-3"></th>
         </tr>
@@ -80,6 +81,19 @@
                          {% else %}bg-gray-100 text-gray-600{% endif %}">
               {% if u.role == 'admin' %}관리자{% elif u.role == 'manager' %}팀장{% else %}팀원{% endif %}
             </span>
+          </td>
+          <td class="px-6 py-3.5">
+            {% if u.role == 'member' %}
+            <select onchange="setParent({{ u.id }}, this.value)"
+                    class="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— 미배정 —</option>
+              {% for m in managers %}
+              <option value="{{ m.id }}" {% if u.parent_id == m.id %}selected{% endif %}>{{ m.name }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <span class="text-xs text-gray-300">-</span>
+            {% endif %}
           </td>
           <td class="px-6 py-3.5 text-gray-400 text-xs">
             {{ u.created_at[:10] if u.created_at else '-' }}
@@ -115,6 +129,12 @@ async function deleteUser(id, name) {
   const data = await res.json();
   if (data.ok) location.reload();
   else alert('삭제 실패: ' + (data.error || '오류'));
+}
+async function setParent(id, pid) {
+  const fd = new FormData(); fd.append('parent_id', pid);
+  const res = await fetch(`/admin/users/${id}/set-parent`, { method: 'POST', body: fd });
+  const data = await res.json();
+  if (!data.ok) alert('소속 팀장 저장 실패: ' + (data.error || '오류'));
 }
 async function resetPw(id, name) {
   const pw = prompt(`"${name}"의 새 비밀번호를 입력하세요 (4자 이상):`);

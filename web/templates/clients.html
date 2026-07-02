@@ -146,7 +146,7 @@
         <th data-sortfield="media" onclick="sortClients('media')" class="px-5 py-3 text-left font-semibold cursor-pointer select-none hover:text-slate-600">매체<span class="sort-ind"></span></th>
         <th class="px-5 py-3 text-left font-semibold">API 키</th>
         <th data-sortfield="last" onclick="sortClients('last')" class="px-5 py-3 text-left font-semibold cursor-pointer select-none hover:text-slate-600">최근 생성<span class="sort-ind"></span></th>
-        {% if sess.role=='admin' %}<th data-sortfield="owner" onclick="sortClients('owner')" class="px-5 py-3 text-left font-semibold cursor-pointer select-none hover:text-slate-600">담당 팀장<span class="sort-ind"></span></th>{% endif %}
+        {% if sess.role in ('admin','manager') %}<th data-sortfield="owner" onclick="sortClients('owner')" class="px-5 py-3 text-left font-semibold cursor-pointer select-none hover:text-slate-600">담당 팀장<span class="sort-ind"></span></th>{% endif %}
         <th class="px-5 py-3 text-right font-semibold">액션</th>
       </tr>
     </thead>
@@ -184,7 +184,7 @@
           {% endif %}
         </td>
         <td class="px-5 py-3.5 text-xs text-slate-500">{{ c.last_report or '—' }}</td>
-        {% if sess.role=='admin' %}<td class="px-5 py-3.5 text-xs font-medium text-slate-600">{{ c.owner_name }}</td>{% endif %}
+        {% if sess.role in ('admin','manager') %}<td class="px-5 py-3.5 text-xs font-medium text-slate-600">{{ c.owner_name }}</td>{% endif %}
         <td class="px-5 py-3.5">
           <div class="flex items-center justify-end gap-1">
             {% if c.has_key %}
