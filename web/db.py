@@ -58,6 +58,15 @@ def init_db():
             user_id         INTEGER REFERENCES users(id),
             PRIMARY KEY (client_id, user_id)
         )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS notifications (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER,
+            report_id       INTEGER,
+            kind            TEXT,      -- assigned | updated | removed
+            message         TEXT,
+            seen            INTEGER DEFAULT 0,
+            created_at      TEXT DEFAULT (datetime('now','localtime'))
+        )""")
 
     # 2) 마이그레이션 — 실패해도 기본 테이블/앱은 살아있게 격리
     try:
@@ -173,18 +182,38 @@ def edit_client(client_id: int, name, naver_customer_id, media,
     return key_changed
 
 
-def delete_client(client_id: int):
-    """광고주 삭제 + 연결된 보고서·배정 정리(고아 레코드 방지)."""
+def delete_client(client_id: int) -> list[dict]:
+    """광고주 삭제 + 연결 보고서·배정·알림 정리.
+    반환: 삭제된 보고서 정보 [{id, filename, assigned_to, year, month}] (파일 정리·할당자 통지용)."""
     with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, filename, assigned_to, year, month FROM reports WHERE client_id=?",
+            (client_id,)).fetchall()
+        info = [dict(r) for r in rows]
+        rids = [r["id"] for r in rows]
+        if rids:
+            ph = ",".join("?" * len(rids))
+            conn.execute(f"DELETE FROM notifications WHERE report_id IN ({ph})", rids)
         conn.execute("DELETE FROM reports WHERE client_id=?", (client_id,))
         conn.execute("DELETE FROM client_users WHERE client_id=?", (client_id,))
         conn.execute("DELETE FROM clients WHERE id=?", (client_id,))
+    return info
 
 
-def delete_clients_by_owner(owner_id: int) -> int:
-    """해당 소유자의 모든 광고주 + 보고서 삭제 (업로드 '전체 교체' 모드용). 삭제된 광고주 수 반환."""
+def delete_clients_by_owner(owner_id: int) -> tuple[int, list[dict]]:
+    """소유자의 모든 광고주 + 보고서 삭제('전체 교체'용).
+    반환: (삭제된 광고주 수, 삭제된 보고서 정보 리스트)."""
     with get_conn() as conn:
         cnt = conn.execute("SELECT COUNT(*) FROM clients WHERE owner_id=?", (owner_id,)).fetchone()[0]
+        rows = conn.execute(
+            """SELECT r.id, r.filename, r.assigned_to, r.year, r.month
+               FROM reports r JOIN clients c ON c.id=r.client_id WHERE c.owner_id=?""",
+            (owner_id,)).fetchall()
+        info = [dict(r) for r in rows]
+        rids = [r["id"] for r in rows]
+        if rids:
+            ph = ",".join("?" * len(rids))
+            conn.execute(f"DELETE FROM notifications WHERE report_id IN ({ph})", rids)
         conn.execute(
             "DELETE FROM reports WHERE client_id IN (SELECT id FROM clients WHERE owner_id=?)",
             (owner_id,))
@@ -192,7 +221,7 @@ def delete_clients_by_owner(owner_id: int) -> int:
             "DELETE FROM client_users WHERE client_id IN (SELECT id FROM clients WHERE owner_id=?)",
             (owner_id,))
         conn.execute("DELETE FROM clients WHERE owner_id=?", (owner_id,))
-        return cnt
+    return cnt, info
 
 
 def get_all_clients() -> list[dict]:
@@ -266,6 +295,47 @@ def assign_report(report_id: int, member_id: int | None):
     """보고서를 팀원에게 할당(열람 권한 부여). member_id=None 이면 할당 해제."""
     with get_conn() as conn:
         conn.execute("UPDATE reports SET assigned_to=? WHERE id=?", (member_id, report_id))
+
+
+# ── 알림 ──────────────────────────────────────────────────
+def add_notification(user_id: int, report_id, kind: str, message: str):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO notifications (user_id, report_id, kind, message) VALUES (?,?,?,?)",
+            (user_id, report_id, kind, message))
+
+
+def unseen_notif_count(user_id: int) -> int:
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT COUNT(*) FROM notifications WHERE user_id=? AND seen=0", (user_id,)).fetchone()[0]
+
+
+def list_notifications(user_id: int, limit: int = 30) -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT ?",
+            (user_id, limit)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def mark_notifications_seen(user_id: int):
+    with get_conn() as conn:
+        conn.execute("UPDATE notifications SET seen=1 WHERE user_id=?", (user_id,))
+
+
+def client_report_counts(client_ids: list[int]) -> dict:
+    """{client_id: {'total': n, 'assigned': m}} — 삭제 경고용."""
+    if not client_ids:
+        return {}
+    ph = ",".join("?" * len(client_ids))
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""SELECT client_id AS cid, COUNT(*) AS total,
+                       SUM(CASE WHEN assigned_to IS NOT NULL THEN 1 ELSE 0 END) AS assigned
+                FROM reports WHERE client_id IN ({ph}) GROUP BY client_id""",
+            list(client_ids)).fetchall()
+    return {r["cid"]: {"total": r["total"], "assigned": r["assigned"] or 0} for r in rows}
 
 
 def set_key_status(client_id: int, status: str):

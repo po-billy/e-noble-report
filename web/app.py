@@ -36,6 +36,8 @@ from web.db import (
     set_key_status, last_report_dates, get_user_names,
     get_team_ids, get_members_of, get_users_by_role, get_clients_scoped,
     set_parent, assign_report,
+    add_notification, unseen_notif_count, list_notifications,
+    mark_notifications_seen, client_report_counts,
 )
 from collectors.naver_searchad import is_connected, MOCK_MODE
 
@@ -70,6 +72,7 @@ def render(request: Request, name: str, **ctx):
         "mock_mode": MOCK_MODE,
         "now_year": now.year,
         "now_month": now.month,
+        "notif_count": unseen_notif_count(sess["user_id"]) if sess else 0,
     }
     base_ctx.update(ctx)
     return templates.TemplateResponse(request=request, name=name, context=base_ctx)
@@ -231,8 +234,10 @@ async def clients_page(request: Request):
     clients = get_all_clients() if ov is None else get_clients_scoped(ov)
     last_dates = last_report_dates(ov)
     user_names = get_user_names() if sess["role"] in ("admin", "manager") else {}
+    rcounts = client_report_counts([c["id"] for c in clients])
     rows = []
     for c in clients:
+        rc = rcounts.get(c["id"], {})
         rows.append({
             "id": c["id"], "name": c["name"],
             "naver_customer_id": c.get("naver_customer_id") or "",
@@ -243,6 +248,8 @@ async def clients_page(request: Request):
             "key_status": c.get("key_status") or "",
             "last_report": last_dates.get(c["id"], ""),
             "owner_name": user_names.get(c.get("owner_id"), "-"),
+            "report_count": rc.get("total", 0),
+            "assigned_count": rc.get("assigned", 0),
         })
     return render(request, "clients.html", active_page="clients",
                   client_rows=rows,
@@ -323,7 +330,16 @@ async def clients_delete(client_id: int, request: Request):
         return JSONResponse({"error": "없는 광고주"}, status_code=404)
     if not _owns(sess, c.get("owner_id")):
         return JSONResponse({"error": "권한 없음"}, status_code=403)
-    delete_client(client_id)
+    info = delete_client(client_id)   # 보고서·배정·알림 정리 + 삭제된 보고서 정보 반환
+    for rep in info:
+        if rep.get("filename"):       # 고아 파일 정리
+            try:
+                (OUTPUT_DIR / rep["filename"]).unlink(missing_ok=True)
+            except OSError:
+                pass
+        if rep.get("assigned_to"):    # 할당받은 팀원에게 삭제 통지
+            add_notification(rep["assigned_to"], None, "removed",
+                             f"'{c['name']}' {rep['year']}년 {rep['month']}월 보고서가 삭제되었습니다.")
     return JSONResponse({"ok": True})
 
 
@@ -361,7 +377,19 @@ async def clients_upload(request: Request, file: UploadFile = File(...),
         return RedirectResponse("/clients?err=시트에 유효한 광고주(customer_id)가 없어 전체 교체를 중단했습니다.",
                                 status_code=302)
 
-    deleted = delete_clients_by_owner(sess["user_id"]) if mode == "replace" else 0
+    if mode == "replace":
+        deleted, del_reports = delete_clients_by_owner(sess["user_id"])
+        for rep in del_reports:
+            if rep.get("filename"):
+                try:
+                    (OUTPUT_DIR / rep["filename"]).unlink(missing_ok=True)
+                except OSError:
+                    pass
+            if rep.get("assigned_to"):
+                add_notification(rep["assigned_to"], None, "removed",
+                                 f"'전체 교체'로 {rep['year']}년 {rep['month']}월 보고서가 삭제되었습니다.")
+    else:
+        deleted = 0
 
     new_cnt, upd_cnt = 0, 0
     to_validate = []
@@ -438,6 +466,10 @@ async def _process_report(report: dict):
         filename = out_path.name
         comment = await asyncio.to_thread(_read_summary_comment, OUTPUT_DIR / filename)
         update_report(rid, status="done", filename=filename, comment=comment or "")
+        # 할당된 보고서를 재생성한 경우 → 할당받은 팀원에게 '업데이트' 알림
+        if report.get("assigned_to"):
+            add_notification(report["assigned_to"], rid, "updated",
+                             f"'{client['name']}' {year}년 {month}월 보고서가 업데이트되었습니다.")
         # 이전 파일명이 다르면(광고주명 변경 등) 옛 파일 정리 → 디스크 누적 방지
         if old_filename and old_filename != filename:
             try:
@@ -654,6 +686,8 @@ async def reports_assign(request: Request, ids: str = Form(""), member_id: int =
             continue
         if r and _owns(sess, r.get("owner_id")):   # 내가 관리하는 보고서만 할당
             assign_report(int(rid), member_id)
+            add_notification(member_id, int(rid), "assigned",
+                             f"'{r.get('client_name','')}' {r['year']}년 {r['month']}월 보고서가 할당되었습니다.")
             n += 1
     return JSONResponse({"assigned": n})
 
@@ -687,6 +721,27 @@ async def download(filename: str, request: Request):
         raise HTTPException(status_code=404)
     return FileResponse(path=str(path), filename=filename,
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ── 알림 ──────────────────────────────────────────────────
+@app.get("/api/notifications")
+async def api_notifications(request: Request):
+    sess = get_session(request)
+    if not sess:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    return JSONResponse({
+        "count": unseen_notif_count(sess["user_id"]),
+        "items": list_notifications(sess["user_id"], 30),
+    })
+
+
+@app.post("/notifications/seen")
+async def api_notifications_seen(request: Request):
+    sess = get_session(request)
+    if not sess:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    mark_notifications_seen(sess["user_id"])
+    return JSONResponse({"ok": True})
 
 
 # ── 사용 매뉴얼 ───────────────────────────────────────────

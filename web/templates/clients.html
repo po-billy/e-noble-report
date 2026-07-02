@@ -200,7 +200,8 @@
           data-name="{{ c.name|lower }}" data-custid="{{ c.naver_customer_id }}" data-media="{{ c.media }}"
           data-last="{{ c.last_report }}" data-owner="{{ (c.owner_name or '')|lower }}"
           data-rawname="{{ c.name }}" data-manager="{{ c.manager_name }}"
-          data-keystate="{% if not c.has_key %}none{% elif c.key_status=='invalid' %}invalid{% else %}ok{% endif %}">
+          data-keystate="{% if not c.has_key %}none{% elif c.key_status=='invalid' %}invalid{% else %}ok{% endif %}"
+          data-reportcount="{{ c.report_count }}" data-assignedcount="{{ c.assigned_count }}">
         <td class="px-5 py-3.5">
           <div class="flex items-center gap-3">
             <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0">{{ c.name[:1] }}</span>
@@ -432,7 +433,11 @@ async function saveEdit(){
 
 // 삭제
 async function delClient(id, name, btn){
-  const ok=await uiConfirm({title:'광고주 삭제', body:`'${name}' 광고주를 삭제할까요? 생성 이력도 함께 삭제됩니다.`, ok:'삭제'});
+  const row=document.querySelector(`tr[data-cid="${id}"]`);
+  const rc=parseInt((row&&row.dataset.reportcount)||'0'), ac=parseInt((row&&row.dataset.assignedcount)||'0');
+  let body=`'${name}' 광고주를 삭제할까요?`;
+  if(rc>0){ body+=`\n\n생성된 보고서 ${rc}건도 함께 삭제됩니다`; if(ac>0) body+=`\n(팀원에게 할당된 ${ac}건 포함 — 해당 팀원에게 삭제 알림이 갑니다)`; body+='.'; }
+  const ok=await uiConfirm({title:'광고주 삭제', body, ok:'삭제'});
   if(!ok) return;
   btn.disabled=true;
   try{
