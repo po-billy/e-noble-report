@@ -32,7 +32,7 @@ from web.db import (
     upsert_client, delete_client, delete_clients_by_owner,
     create_report, update_report, get_report, list_reports, delete_report,
     enqueue_report, claim_next_report, requeue_stuck, report_status_counts,
-    set_key_status, last_report_dates,
+    set_key_status, last_report_dates, get_user_names,
 )
 from collectors.naver_searchad import is_connected, MOCK_MODE
 
@@ -180,8 +180,10 @@ async def clients_page(request: Request):
     sess = get_session(request)
     if not sess:
         return RedirectResponse("/login", status_code=302)
-    clients = get_all_clients() if _is_admin(sess) else get_clients_by_owner(sess["user_id"])
+    is_admin = _is_admin(sess)
+    clients = get_all_clients() if is_admin else get_clients_by_owner(sess["user_id"])
     last_dates = last_report_dates(_reports_scope(sess))
+    user_names = get_user_names() if is_admin else {}
     rows = []
     for c in clients:
         rows.append({
@@ -193,6 +195,7 @@ async def clients_page(request: Request):
             "key_masked": _mask(c.get("api_key")),
             "key_status": c.get("key_status") or "",
             "last_report": last_dates.get(c["id"], ""),
+            "owner_name": user_names.get(c.get("owner_id"), "-"),
         })
     return render(request, "clients.html", active_page="clients",
                   client_rows=rows,
@@ -440,6 +443,10 @@ async def reports_page(request: Request):
     if not sess:
         return RedirectResponse("/login", status_code=302)
     reports = list_reports(_reports_scope(sess))
+    if _is_admin(sess):
+        un = get_user_names()
+        for r in reports:
+            r["owner_name"] = un.get(r.get("owner_id"), "-")
     c = report_status_counts(_reports_scope(sess))
     return render(request, "reports.html", active_page="reports",
                   reports=reports, done_count=c["done"], failed_count=c["error"],

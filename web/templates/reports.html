@@ -66,6 +66,7 @@
       <tr class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/50">
         <th class="px-5 py-3 text-left w-10"><input type="checkbox" id="chk-all" onclick="toggleAll(this)" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500/40"></th>
         <th class="px-5 py-3 text-left font-semibold">광고주</th>
+        {% if sess.role=='admin' %}<th class="px-5 py-3 text-left font-semibold">담당 팀장</th>{% endif %}
         <th class="px-5 py-3 text-left font-semibold">보고 기간</th>
         <th class="px-5 py-3 text-left font-semibold">상태</th>
         <th class="px-5 py-3 text-left font-semibold">생성일시</th>
@@ -90,6 +91,7 @@
             <span class="font-semibold text-slate-800">{{ r.client_name }}</span>
           </div>
         </td>
+        {% if sess.role=='admin' %}<td class="px-5 py-3.5 text-xs font-medium text-slate-600">{{ r.owner_name }}</td>{% endif %}
         <td class="px-5 py-3.5 text-slate-600 font-medium">{{ r.year }}년 {{ r.month }}월</td>
         <td class="px-5 py-3.5">
           {% if r.status=='done' %}

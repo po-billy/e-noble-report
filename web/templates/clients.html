@@ -141,18 +141,21 @@
   <table class="w-full text-sm">
     <thead>
       <tr class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/50">
-        <th class="px-5 py-3 text-left font-semibold">광고주</th>
-        <th class="px-5 py-3 text-left font-semibold">customer_id</th>
-        <th class="px-5 py-3 text-left font-semibold">매체</th>
+        <th data-sortfield="name" onclick="sortClients('name')" class="px-5 py-3 text-left font-semibold cursor-pointer select-none hover:text-slate-600">광고주<span class="sort-ind"></span></th>
+        <th data-sortfield="custid" onclick="sortClients('custid')" class="px-5 py-3 text-left font-semibold cursor-pointer select-none hover:text-slate-600">customer_id<span class="sort-ind"></span></th>
+        <th data-sortfield="media" onclick="sortClients('media')" class="px-5 py-3 text-left font-semibold cursor-pointer select-none hover:text-slate-600">매체<span class="sort-ind"></span></th>
         <th class="px-5 py-3 text-left font-semibold">API 키</th>
-        <th class="px-5 py-3 text-left font-semibold">최근 생성</th>
+        <th data-sortfield="last" onclick="sortClients('last')" class="px-5 py-3 text-left font-semibold cursor-pointer select-none hover:text-slate-600">최근 생성<span class="sort-ind"></span></th>
+        {% if sess.role=='admin' %}<th data-sortfield="owner" onclick="sortClients('owner')" class="px-5 py-3 text-left font-semibold cursor-pointer select-none hover:text-slate-600">담당 팀장<span class="sort-ind"></span></th>{% endif %}
         <th class="px-5 py-3 text-right font-semibold">액션</th>
       </tr>
     </thead>
     <tbody id="rows" class="divide-y divide-slate-100">
       {% for c in client_rows %}
       <tr class="group hover:bg-slate-50/70 transition-colors" data-cid="{{ c.id }}" data-haskey="{{ 1 if c.has_key else 0 }}"
-          data-search="{{ (c.name ~ ' ' ~ c.naver_customer_id)|lower }}">
+          data-search="{{ (c.name ~ ' ' ~ c.naver_customer_id)|lower }}"
+          data-name="{{ c.name|lower }}" data-custid="{{ c.naver_customer_id }}" data-media="{{ c.media }}"
+          data-last="{{ c.last_report }}" data-owner="{{ (c.owner_name or '')|lower }}">
         <td class="px-5 py-3.5">
           <div class="flex items-center gap-3">
             <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0">{{ c.name[:1] }}</span>
@@ -181,6 +184,7 @@
           {% endif %}
         </td>
         <td class="px-5 py-3.5 text-xs text-slate-500">{{ c.last_report or '—' }}</td>
+        {% if sess.role=='admin' %}<td class="px-5 py-3.5 text-xs font-medium text-slate-600">{{ c.owner_name }}</td>{% endif %}
         <td class="px-5 py-3.5">
           <div class="flex items-center justify-end gap-1">
             {% if c.has_key %}
@@ -251,6 +255,23 @@ function filterRows(){
 
 function setStatus(row, html, cls){
   const s=row.querySelector('.status'); s.innerHTML=html; s.className='status text-xs '+(cls||'text-slate-400');
+}
+
+// 열 클릭 정렬
+let _sortField=null, _sortAsc=true;
+function sortClients(field){
+  if(_sortField===field) _sortAsc=!_sortAsc; else { _sortField=field; _sortAsc=true; }
+  const tbody=document.getElementById('rows');
+  const rows=[...tbody.querySelectorAll('tr[data-cid]')];
+  rows.sort((a,b)=>{
+    let va=a.dataset[field]||'', vb=b.dataset[field]||'';
+    if(field==='custid'){ return _sortAsc ? (parseInt(va)||0)-(parseInt(vb)||0) : (parseInt(vb)||0)-(parseInt(va)||0); }
+    return _sortAsc ? va.localeCompare(vb,'ko') : vb.localeCompare(va,'ko');
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+  document.querySelectorAll('th[data-sortfield] .sort-ind').forEach(s=>s.textContent='');
+  const th=document.querySelector(`th[data-sortfield="${field}"] .sort-ind`);
+  if(th) th.textContent = _sortAsc ? ' ▲' : ' ▼';
 }
 
 // 개별 생성 → 서버 큐에 등록만 (나가도 서버가 처리)

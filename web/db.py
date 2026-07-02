@@ -189,6 +189,13 @@ def get_clients_by_owner(owner_id: int) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def get_user_names() -> dict:
+    """{user_id: name} — 관리자 화면에서 담당 팀장(=팀) 표시용."""
+    with get_conn() as conn:
+        rows = conn.execute("SELECT id, name FROM users").fetchall()
+    return {r["id"]: r["name"] for r in rows}
+
+
 def set_key_status(client_id: int, status: str):
     """API 키 검증 결과 저장: '' 미검증 / 'ok' 정상 / 'invalid' 정보없음."""
     with get_conn() as conn:
